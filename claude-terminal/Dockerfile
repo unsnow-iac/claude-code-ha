@@ -1,8 +1,10 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Install packages in a single layer to minimize image size
-# Node.js and npm kept for image-service dependency
+# Install packages in a single layer to minimize image size.
+# Node.js and npm kept for image-service dependency.
+# ttyd + tmux are baked here (not apk'd at runtime) so the web terminal starts
+# even when Alpine repos are unreachable, and tmux is always available.
 RUN apk add --no-cache \
     nodejs \
     npm \
@@ -20,14 +22,20 @@ RUN apk add --no-cache \
     git \
     vim \
     wget \
-    tree
+    tree \
+    ttyd \
+    tmux
 
-# Install Claude Code CLI
-# Try native installer first (recommended by Anthropic, uses Bun runtime).
-# Falls back to npm if native install fails (e.g., CPU lacks AVX support).
-RUN (curl -fsSL https://claude.ai/install.sh | bash \
+# Install Claude Code CLI, pinned to a known-good version for reproducible
+# builds. install.sh passes its argument to `claude install <version>`
+# (stable | latest | X.Y.Z). Bump CLAUDE_VERSION to deliver a new Claude via
+# an add-on release — that is the only supported update path; in-container
+# `claude update` is disabled (DISABLE_AUTOUPDATER) and reset on restart.
+# Native installer first (Bun runtime); npm fallback if the CPU lacks AVX.
+ARG CLAUDE_VERSION=2.1.185
+RUN (curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_VERSION}" \
     && ln -sf /root/.local/bin/claude /usr/local/bin/claude) \
-    || npm install -g @anthropic-ai/claude-code
+    || npm install -g @anthropic-ai/claude-code@"${CLAUDE_VERSION}"
 
 # Install Home Assistant CLI (ha command)
 # Download appropriate binary based on build architecture
