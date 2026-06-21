@@ -2,6 +2,31 @@
 
 An enhanced Home Assistant add-on that integrates Anthropic's Claude Code CLI with persistent package management and advanced features.
 
+---
+
+## ⚙️ unsnow fork
+
+This is a maintenance fork of [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha), kept on the `main` branch of [`unsnow-iac/claude-code-ha`](https://github.com/unsnow-iac/claude-code-ha). It exists to fix issues that broke the environment in practice:
+
+| Fixed | Why it mattered |
+|---|---|
+| **Base image → Alpine 3.21** (was 3.19) | Alpine 3.19 ships musl 1.2.4, which lacks the `statx` symbol current Claude Code native builds require — newer binaries crashed at launch with `Error relocating ...: statx: symbol not found`. 3.21 ships musl 1.2.5. |
+| **Claude pinned + baked; `ttyd`/`tmux` baked** | Reproducible builds (`ARG CLAUDE_VERSION`); web terminal and tmux no longer depend on `apk` reaching the network at every boot. |
+| **`persist-install` rewritten** | `apk info -L` lists paths *without* a leading slash, so the old `== /usr/bin/*` test never matched — the script reported success but copied nothing, so packages vanished on container recreation. Now normalises paths and resolves real deps via `ldd`. |
+| **Removed the `persistent_claude` layer** | It checked an obsolete `cli.js` path (always warned, silently fell back) and `npm install`-ed `@latest` into `/data/npm`, fighting the baked-binary model. The launcher is now force-linked to the baked binary on every boot, so a stray `claude update` self-heals on restart. |
+
+### Updating Claude Code
+
+In-container self-update is disabled by design. To ship a new Claude version:
+
+1. Bump `ARG CLAUDE_VERSION` in `claude-terminal/Dockerfile`.
+2. Bump `version:` in `claude-terminal/config.yaml` and `claude-terminal/build.yaml`.
+3. Commit, push to `main`, then **Update**/**Rebuild** the add-on in Home Assistant.
+
+The add-on builds on-device (no prebuilt image), so the rebuild picks up the new base + pinned Claude. `/data` (auth, config, packages) is preserved across rebuilds.
+
+---
+
 ## Recommended Plugins
 
 For an enhanced Claude Code experience with Home Assistant, we recommend installing the **Claude Home Assistant Plugins**:
