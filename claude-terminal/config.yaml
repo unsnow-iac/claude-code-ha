@@ -1,8 +1,8 @@
 ---
-name: "Claude Terminal Pro"
-description: "Enhanced terminal interface for Anthropic's Claude Code CLI with persistent auth, package management, and image paste support. Fork of heytcass/home-assistant-addons"
-version: "2.0.11"
-slug: "claude_terminal_pro"
+name: "Claude Terminal (unsnow)"
+description: "Claude Code CLI terminal for Home Assistant. unsnow fork of ESJavadex/claude-code-ha: musl 1.2.5 base (fixes statx), working persist-install, baked ttyd/tmux, add-on-release update model."
+version: "3.0.0"
+slug: "claude_terminal_unsnow"
 init: false
 
 # Supported architectures
@@ -12,13 +12,13 @@ arch:
   - armv7
 
 # External resources
-url: "https://github.com/esjavadex/claude-code-ha"
+url: "https://github.com/unsnow-iac/claude-code-ha"
 
 # Web interface configuration
 ingress: true
 ingress_port: 7680
 panel_icon: mdi:code-braces-box
-panel_title: "Claude Terminal Pro"
+panel_title: "Claude Terminal (unsnow)"
 panel_admin: true
 
 # Port configuration
@@ -30,13 +30,14 @@ ports_description:
   7681/tcp: "ttyd terminal (embedded in web interface)"
 
 # Add-on configuration options
+# (use_persistent_claude / auto_update_claude_on_start removed: that layer
+#  targeted an obsolete cli.js path and fought the baked-binary model. Claude
+#  updates are delivered by bumping CLAUDE_VERSION and rebuilding the add-on.)
 options:
   auto_launch_claude: true
   dangerously_skip_permissions: false
   persistent_apk_packages: []
   persistent_pip_packages: []
-  use_persistent_claude: false
-  auto_update_claude_on_start: false
 
 schema:
   auto_launch_claude: bool?
@@ -45,8 +46,6 @@ schema:
     - str?
   persistent_pip_packages:
     - str?
-  use_persistent_claude: bool?
-  auto_update_claude_on_start: bool?
 
 # Volume mappings for file access
 map:

@@ -31,16 +31,21 @@ init_environment() {
     chmod 755 "$data_home" "$config_dir" "$cache_dir" "$state_dir" "$claude_config_dir" "$gh_config_dir" \
               "$persist_root" "$persist_bin" "$persist_lib" "$persist_python"
 
-    # Ensure Claude native binary is available at $HOME/.local/bin/claude
+    # Ensure Claude native binary is available at $HOME/.local/bin/claude.
     # The native installer places it at /root/.local/bin/claude during Docker build,
-    # but at runtime HOME=/data/home, so Claude's self-check looks in /data/home/.local/bin/
+    # but at runtime HOME=/data/home, so Claude's self-check looks in /data/home/.local/bin/.
+    #
+    # ALWAYS re-point this launcher at the image's baked binary. If someone runs
+    # `claude update`, the native updater drops a new build into XDG_DATA_HOME
+    # (/data/.local/share, persistent) and repoints this launcher at it — which
+    # both drifts from the add-on's pinned version and, on an old base, bricked
+    # launch with `statx: symbol not found`. Forcing the link each boot makes the
+    # baked version authoritative: any such drift is reset on the next restart.
     local native_bin_dir="$data_home/.local/bin"
-    if [ ! -d "$native_bin_dir" ]; then
-        mkdir -p "$native_bin_dir"
-    fi
-    if [ -f /root/.local/bin/claude ] && [ ! -f "$native_bin_dir/claude" ]; then
-        ln -sf /root/.local/bin/claude "$native_bin_dir/claude"
-        bashio::log.info "  - Claude native binary linked: $native_bin_dir/claude"
+    mkdir -p "$native_bin_dir"
+    if [ -f /root/.local/bin/claude ]; then
+        ln -sfn /root/.local/bin/claude "$native_bin_dir/claude"
+        bashio::log.info "  - Claude native binary linked (baked image version): $native_bin_dir/claude"
     fi
 
     # Set XDG and application environment variables
@@ -127,6 +132,18 @@ PROFILE_EOF
         fi
     fi
 
+    # Link the harness memory dir to git-tracked /config/.claude/memory.
+    # HOME=/data/home is per-add-on, so a fresh /data has no memory symlink and
+    # Claude Code silently recalls into a new empty dir. The memories themselves
+    # live in /config (mounted, git-tracked) and survive; only the symlink needs
+    # recreating. Project dir for cwd /config is sanitised to "-config".
+    if [ -d "/config/.claude/memory" ]; then
+        local mem_project_dir="$data_home/.claude/projects/-config"
+        mkdir -p "$mem_project_dir"
+        ln -sfn /config/.claude/memory "$mem_project_dir/memory"
+        bashio::log.info "  - Harness memory linked: $mem_project_dir/memory -> /config/.claude/memory"
+    fi
+
     bashio::log.info "Environment initialized:"
     bashio::log.info "  - Home: $HOME"
     bashio::log.info "  - Config: $XDG_CONFIG_HOME"
@@ -180,50 +197,26 @@ migrate_legacy_auth_files() {
     fi
 }
 
-# Install required tools
+# Verify required tools. ttyd/jq/curl are baked into the image, so this is a
+# no-op on a healthy build; only fall back to apk (network-dependent) if the
+# terminal binary is somehow missing, instead of apk-ing on every boot.
 install_tools() {
-    bashio::log.info "Installing additional tools..."
+    if command -v ttyd >/dev/null 2>&1; then
+        bashio::log.info "Required tools present (baked into image)"
+        return 0
+    fi
+    bashio::log.warning "ttyd not found in image; installing at runtime..."
     if ! apk add --no-cache ttyd jq curl; then
         bashio::log.error "Failed to install required tools"
         exit 1
     fi
-    bashio::log.info "Tools installed successfully"
 }
 
-# Configure optional persistent Claude Code override in /data
-setup_persistent_claude() {
-    local use_persistent_claude
-    local auto_update_claude_on_start
-    local persistent_root="/data/npm"
-    local persistent_cli="$persistent_root/lib/node_modules/@anthropic-ai/claude-code/cli.js"
-
-    use_persistent_claude=$(bashio::config 'use_persistent_claude' 'false')
-    auto_update_claude_on_start=$(bashio::config 'auto_update_claude_on_start' 'false')
-
-    if [ "$use_persistent_claude" != "true" ]; then
-        bashio::log.info "Persistent Claude override: disabled"
-        return 0
-    fi
-
-    mkdir -p "$persistent_root"
-
-    if [ "$auto_update_claude_on_start" = "true" ]; then
-        bashio::log.info "Persistent Claude override: updating Claude Code in /data/npm..."
-        if NPM_CONFIG_PREFIX="$persistent_root" npm install -g @anthropic-ai/claude-code@latest --prefer-online; then
-            bashio::log.info "Persistent Claude override: update completed"
-        else
-            bashio::log.warning "Persistent Claude override: update failed, continuing with existing version if present"
-        fi
-    fi
-
-    if [ -f "$persistent_cli" ]; then
-        ln -sf "$persistent_cli" /usr/local/bin/claude
-        bashio::log.info "Persistent Claude override active: /usr/local/bin/claude -> $persistent_cli"
-    else
-        bashio::log.warning "Persistent Claude override enabled but no persistent Claude install found at $persistent_cli"
-        bashio::log.warning "Install it manually once with: NPM_CONFIG_PREFIX=/data/npm npm install -g @anthropic-ai/claude-code@latest"
-    fi
-}
+# (Removed setup_persistent_claude: it checked an obsolete
+#  .../claude-code/cli.js path that current native installs no longer ship, so
+#  it always warned and silently fell back, while npm-installing @latest into
+#  /data/npm fought the baked-binary model. Claude is now baked at a pinned
+#  CLAUDE_VERSION and the launcher is force-linked to it in init_environment.)
 
 # Setup session picker script
 setup_session_picker() {
@@ -437,7 +430,6 @@ main() {
 
     init_environment
     install_tools
-    setup_persistent_claude
     setup_session_picker
     setup_persistent_packages
     start_web_terminal
