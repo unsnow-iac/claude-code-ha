@@ -69,6 +69,28 @@ list_packages() {
     du -sh "$PERSIST_ROOT" 2>/dev/null || echo "  0B"
 }
 
+# Copy a binary's shared-library dependencies into persistent storage.
+# Uses ldd, so deps owned by OTHER apk packages (e.g. tmux -> libevent,
+# ssh -> libedit) are captured -- not just files the package itself owns, which
+# the old logic missed. cp -L dereferences the SONAME symlink so the real
+# versioned object lands under the name the loader searches for.
+# Base/common libs are skipped: they are guaranteed present in the image, and
+# copying them into /data/packages/lib (first on LD_LIBRARY_PATH) would globally
+# shadow the base versions and risk version skew across rebuilds.
+copy_lib_deps() {
+    local bin="$1"
+    ldd "$bin" 2>/dev/null | awk '/=>/ {print $3} !/=>/ {print $1}' | while read -r lib; do
+        [ -n "$lib" ] && [ -f "$lib" ] || continue
+        case "$(basename "$lib")" in
+            ld-musl-*|libc.musl-*|libcrypto.so*|libssl.so*|libz.so*|libstdc++.so*|libgcc_s.so*)
+                continue ;;
+        esac
+        local dest="$PERSIST_ROOT/lib/$(basename "$lib")"
+        [ -e "$dest" ] && continue
+        cp -L "$lib" "$dest" 2>/dev/null && echo "      ↳ lib: $(basename "$lib")"
+    done
+}
+
 install_system_packages() {
     local packages="$@"
 
@@ -89,27 +111,28 @@ install_system_packages() {
     for pkg in $packages; do
         echo "  Processing: $pkg"
 
-        # Get list of files installed by package
-        apk info -L "$pkg" 2>/dev/null | while read -r file; do
-            # Copy executables
-            if [[ "$file" == /usr/bin/* ]] || [[ "$file" == /usr/sbin/* ]] || [[ "$file" == /bin/* ]]; then
-                if [ -f "$file" ] && [ -x "$file" ]; then
-                    cp -a "$file" "$PERSIST_BIN/" 2>/dev/null && echo "    ✓ $(basename $file)"
-                fi
-            fi
-
-            # Copy shared libraries
-            if [[ "$file" == /usr/lib/* ]] && [[ "$file" == *.so* ]]; then
-                if [ -f "$file" ]; then
-                    cp -a "$file" "$PERSIST_ROOT/lib/" 2>/dev/null
-                fi
-            fi
+        # `apk info -L` lists package files WITHOUT a leading slash (e.g.
+        # "usr/bin/tmux"), so the old `== /usr/bin/*` test never matched and
+        # nothing was ever copied -- the script printed success but persisted
+        # nothing. Normalise to an absolute path, copy executables, then pull in
+        # their shared-lib deps via ldd.
+        apk info -L "$pkg" 2>/dev/null | while read -r rel; do
+            [ -n "$rel" ] || continue
+            file="/$rel"
+            case "$file" in
+                /usr/bin/*|/usr/sbin/*|/bin/*|/sbin/*)
+                    if [ -f "$file" ] && [ -x "$file" ]; then
+                        cp -a "$file" "$PERSIST_BIN/" 2>/dev/null && echo "    ✓ bin: $(basename "$file")"
+                        copy_lib_deps "$file"
+                    fi
+                    ;;
+            esac
         done
     done
 
     echo ""
-    echo "✅ System packages installed and persisted!"
-    echo "💡 These packages will survive container restarts"
+    echo "✅ System packages installed and persisted to $PERSIST_ROOT"
+    echo "💡 Survives container restarts AND recreation (binaries + ldd deps copied)"
 }
 
 install_python_packages() {
