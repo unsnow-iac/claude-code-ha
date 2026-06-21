@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.1
+
+### 🐛 Fix - `persistent_apk_packages` / `persistent_pip_packages` auto-install
+- Configuring `persistent_apk_packages` (e.g. `openssh-client`, `tmux`) aborted startup install with `jq: parse error: Invalid literal at line 2, column 0`.
+- Cause: `bashio::config` already expands a list option into newline-separated raw values; `run.sh` then piped that back through `jq -r '.[]'`, double-parsing non-JSON and failing.
+- Fix: consume the expanded lines directly (no second `jq`); add `null`/empty guards. Both apk and pip auto-install now work.
+
 ## 2.0.11
 
 ### ✨ New Feature - Optional Persistent Claude Code Override

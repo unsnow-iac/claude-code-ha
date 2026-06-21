@@ -1,7 +1,7 @@
 ---
 name: "Claude Terminal (unsnow)"
 description: "Claude Code CLI terminal for Home Assistant. unsnow fork of ESJavadex/claude-code-ha: musl 1.2.5 base (fixes statx), working persist-install, baked ttyd/tmux, add-on-release update model."
-version: "3.0.0"
+version: "3.0.1"
 slug: "claude_terminal_unsnow"
 init: false
 

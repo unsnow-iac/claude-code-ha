@@ -254,30 +254,33 @@ setup_persistent_packages() {
 
 # Auto-install packages from add-on configuration
 auto_install_packages() {
-    local apk_packages=$(bashio::config 'persistent_apk_packages' '[]')
-    local pip_packages=$(bashio::config 'persistent_pip_packages' '[]')
+    # NOTE: bashio::config already expands a list option into newline-separated
+    # raw values (it queries `.key[]` through `jq --raw-output`). Piping that
+    # back through `jq -r '.[]'` double-parses it and aborts with
+    # "jq: parse error: Invalid literal..." — so consume the lines directly.
+    local apk_packages pip_packages
+    apk_packages=$(bashio::config 'persistent_apk_packages')
+    pip_packages=$(bashio::config 'persistent_pip_packages')
 
-    # Check if any packages are configured
-    if [ "$apk_packages" != "[]" ] && [ "$apk_packages" != "" ]; then
+    # Check if any system (apk) packages are configured
+    if [ -n "$apk_packages" ] && [ "$apk_packages" != "[]" ] && [ "$apk_packages" != "null" ]; then
         bashio::log.info "Auto-installing system packages from config..."
-
-        # Parse JSON array and install
-        echo "$apk_packages" | jq -r '.[]' | while read -r pkg; do
-            if [ -n "$pkg" ]; then
-                bashio::log.info "  Installing: $pkg"
-                /usr/local/bin/persist-install "$pkg" || bashio::log.warning "Failed to install: $pkg"
-            fi
-        done
+        while read -r pkg; do
+            [ -n "$pkg" ] || continue
+            bashio::log.info "  Installing: $pkg"
+            /usr/local/bin/persist-install "$pkg" || bashio::log.warning "Failed to install: $pkg"
+        done <<< "$apk_packages"
     fi
 
-    # Check if any Python packages are configured
-    if [ "$pip_packages" != "[]" ] && [ "$pip_packages" != "" ]; then
+    # Check if any Python (pip) packages are configured
+    if [ -n "$pip_packages" ] && [ "$pip_packages" != "[]" ] && [ "$pip_packages" != "null" ]; then
         bashio::log.info "Auto-installing Python packages from config..."
 
-        # Collect all package names
-        local all_packages=$(echo "$pip_packages" | jq -r '.[]' | tr '\n' ' ')
+        # Collect all package names onto one line for a single pip invocation
+        local all_packages
+        all_packages=$(echo "$pip_packages" | tr '\n' ' ')
 
-        if [ -n "$all_packages" ]; then
+        if [ -n "${all_packages// /}" ]; then
             bashio::log.info "  Installing: $all_packages"
             /usr/local/bin/persist-install --python $all_packages || bashio::log.warning "Failed to install Python packages"
         fi
