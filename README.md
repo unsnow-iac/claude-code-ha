@@ -56,6 +56,26 @@ access must run a local copy with `hassio_role: manager` (it's a fixed manifest
 field, not raisable from the HA UI). See the
 [add-on README](claude-terminal/README.md) for details.
 
+### Auto-wiring ha-mcp (one paste)
+
+You don't have to wire the MCP server by hand. Install the **Home Assistant MCP
+Server** ([`homeassistant-ai/ha-mcp`](https://github.com/homeassistant-ai/ha-mcp))
+add-on, open its **Log** tab, copy the server URL it prints
+(`http://<host>:9583/private_<secret>`), and paste it into this add-on's
+**`home_assistant_mcp_url`** option. On the next start the terminal opens already
+connected — Claude can call the `ha_*` tools with no `claude mcp add`.
+
+- The secret path *is* the credential; **no token** is required. ha-mcp's own
+  `manager` token (not this add-on's) does the work, so nothing about this add-on's
+  reduced privilege changes.
+- Leaving `home_assistant_mcp_url` **empty** disables auto-wiring entirely and
+  touches no Claude config — if you already wired ha-mcp yourself, it's left as-is.
+- If ha-mcp is reinstalled its secret path rotates; if the `ha_*` tools stop
+  working, re-copy the new URL from the log into the option.
+- With `dangerously_skip_permissions: true`, MCP tool calls aren't prompted on the
+  Claude side — for unattended use, consider ha-mcp's own `read_only_mode` or
+  `enable_tool_security_policies` as a server-side guard.
+
 ## Fork Attribution
 
 Forked from [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) by Javier Santos, itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady. Maintained by [unsnow-iac](https://github.com/unsnow-iac).
@@ -114,6 +134,9 @@ A web-based terminal interface with Claude Code CLI pre-installed and enhanced p
 #### Configuration Options
 - `auto_launch_claude`: Auto-start Claude or show session picker (default: true)
 - `dangerously_skip_permissions`: Enable unrestricted file access (default: false)
+- `enable_home_assistant_mcp`: Auto-wire the ha-mcp server on boot (default: true)
+- `home_assistant_mcp_url`: ha-mcp server URL from its add-on log; empty = no-op
+  (see [Auto-wiring ha-mcp](#auto-wiring-ha-mcp-one-paste))
 - `persistent_apk_packages`: System packages to auto-install
 - `persistent_pip_packages`: Python packages to auto-install
 

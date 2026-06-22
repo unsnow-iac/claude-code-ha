@@ -287,6 +287,109 @@ auto_install_packages() {
     fi
 }
 
+# Auto-wire Claude Code to the ha-mcp (Home Assistant MCP) server.
+#
+# ha-mcp (homeassistant-ai/ha-mcp) is a SEPARATE add-on holding its own
+# `hassio_role: manager` token; it exposes streamable-HTTP on :9583 at a secret
+# path that IS the credential (no token needed from us). We only need its URL,
+# which the user pastes into `home_assistant_mcp_url` (copied from ha-mcp's log) —
+# we can't auto-discover it because reading another add-on's options needs the
+# `manager` Supervisor scope this add-on deliberately dropped in 4.4.0.
+#
+# Hard rules (see plan / config.yaml comment):
+#   - EMPTY url or disabled  => pure no-op: touch no Claude config at all, so an
+#     existing manual wiring is left byte-for-byte intact.
+#   - Dedup by URL host:port, not name: if any *other-named* server already targets
+#     this host:port, leave it alone (don't create a duplicate connection).
+#   - Never block boot (non-fatal, timeout-guarded) and never log the secret URL.
+setup_ha_mcp() {
+    local enabled url config stripped hostport existing other our_url to=""
+
+    enabled=$(bashio::config 'enable_home_assistant_mcp' 'true')
+    url=$(bashio::config 'home_assistant_mcp_url' '')
+
+    # Trim surrounding whitespace (incl. a stray CR/space from a copy-paste) — an
+    # untrimmed URL would silently break the connection or the host:port match.
+    url="${url#"${url%%[![:space:]]*}"}"
+    url="${url%"${url##*[![:space:]]}"}"
+
+    # Opt-out or not configured -> do absolutely nothing.
+    if [ "$enabled" != "true" ]; then
+        bashio::log.info "Home Assistant MCP auto-wiring disabled (enable_home_assistant_mcp=false)"
+        return 0
+    fi
+    if [ -z "$url" ] || [ "$url" = "null" ]; then
+        bashio::log.info "Home Assistant MCP: no URL set; skipping auto-wire."
+        bashio::log.info "  To connect, install the ha-mcp add-on and paste the URL from its log"
+        bashio::log.info "  into the 'home_assistant_mcp_url' option."
+        return 0
+    fi
+    case "$url" in
+        http://*|https://*) : ;;
+        *)
+            bashio::log.warning "home_assistant_mcp_url is not an http(s) URL; skipping ha-mcp auto-wire."
+            return 0
+            ;;
+    esac
+    if ! command -v claude >/dev/null 2>&1; then
+        bashio::log.warning "claude binary not found; skipping ha-mcp auto-wire."
+        return 0
+    fi
+
+    # host:port of the configured URL (scheme stripped, path stripped)
+    stripped=${url#*://}
+    hostport=${stripped%%/*}
+    # Guard an empty host (e.g. "https://" or "http:///path"): an empty needle makes
+    # awk's index() match every server, which would spuriously skip wiring.
+    if [ -z "$hostport" ]; then
+        bashio::log.warning "home_assistant_mcp_url has no host; skipping ha-mcp auto-wire."
+        return 0
+    fi
+
+    # Inspect existing config without health-checking (jq, no network, no hang).
+    # User-scope servers live at .mcpServers; project/local at .projects[].mcpServers.
+    config="$HOME/.claude.json"
+    if [ -f "$config" ] && command -v jq >/dev/null 2>&1; then
+        existing=$(jq -r '
+            ((.mcpServers // {}) | to_entries[]),
+            ((.projects // {}) | to_entries[] | (.value.mcpServers // {}) | to_entries[])
+            | "\(.key)\t\(.value.url // "")"
+        ' "$config" 2>/dev/null || true)
+
+        # An existing server under a DIFFERENT name already points here -> the user
+        # wired it themselves; never duplicate it.
+        other=$(printf '%s\n' "$existing" \
+            | awk -F'\t' -v hp="$hostport" '$1 != "ha-mcp" && $2 != "" && index($2, hp) {print $1; exit}')
+        if [ -n "$other" ]; then
+            bashio::log.info "Home Assistant MCP: existing connection '${other}' already targets this server; leaving it untouched."
+            return 0
+        fi
+
+        # Our own entry already correct -> nothing to do.
+        our_url=$(jq -r '.mcpServers."ha-mcp".url // empty' "$config" 2>/dev/null || true)
+        if [ "$our_url" = "$url" ]; then
+            bashio::log.info "Home Assistant MCP: 'ha-mcp' already wired."
+            return 0
+        fi
+    fi
+
+    # (Re)register our managed entry at user scope. Use `add --transport http` (URL as
+    # a positional arg) rather than hand-built add-json, so a URL with special chars
+    # can't malform the JSON. timeout-guarded if available; always non-fatal. Output
+    # is sent to /dev/null — `add` echoes the URL, which is a credential we never log.
+    # NB: use an if-block, not `cmd && to=...`, so a missing `timeout` can't make
+    # the line return non-zero and trip `set -e` (would abort boot).
+    if command -v timeout >/dev/null 2>&1; then
+        to="timeout 15"
+    fi
+    $to claude mcp remove ha-mcp --scope user >/dev/null 2>&1 || true
+    if $to claude mcp add --transport http --scope user ha-mcp "$url" >/dev/null 2>&1; then
+        bashio::log.info "Home Assistant MCP: 'ha-mcp' wired (user scope)."
+    else
+        bashio::log.warning "Home Assistant MCP: registration failed; continuing without it."
+    fi
+}
+
 # Legacy monitoring functions removed - using simplified /data approach
 
 # Determine Claude launch command based on configuration
@@ -437,6 +540,7 @@ main() {
     install_tools
     setup_session_picker
     setup_persistent_packages
+    setup_ha_mcp
     start_web_terminal
 }
 
