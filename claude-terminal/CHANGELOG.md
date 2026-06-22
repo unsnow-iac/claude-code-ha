@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### 🔗 Home Assistant MCP (ha-mcp) auto-wiring
+- The add-on can now register the [`homeassistant-ai/ha-mcp`](https://github.com/homeassistant-ai/ha-mcp)
+  server with Claude Code **on boot**, so the terminal opens already connected to
+  Home Assistant's structured `ha_*` tools — no manual `claude mcp add`.
+- **Setup:** install the separate **Home Assistant MCP Server** add-on, copy the
+  URL it prints in its log (`http://<host>:9583/private_<secret>`), and paste it
+  into the new **`home_assistant_mcp_url`** option. The secret path is the
+  credential — no token is needed. Master switch **`enable_home_assistant_mcp`**
+  (default `true`).
+- **Not a privilege regression.** ha-mcp is a *separate* add-on holding its own
+  `manager` token; this add-on's token stays `homeassistant`-scoped. Wiring routes
+  HA operations through that audited MCP channel — exactly the path 4.4.0 intended —
+  rather than through a broad ambient Supervisor token.
+- **Safe by default for existing setups.** An empty `home_assistant_mcp_url` is a
+  pure no-op (no Claude config is touched). When a URL is set, the add-on dedups by
+  host:port: a connection to that server under a *different* name is left untouched
+  rather than duplicated; the entry the add-on manages is named `ha-mcp` and is
+  updated to match the option. The secret URL is never written to the log.
+
 ## 4.4.0
 
 A hygiene release batching least-privilege, supply-chain, robustness, and docs

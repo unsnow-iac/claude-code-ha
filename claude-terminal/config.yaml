@@ -37,15 +37,30 @@ ports_description:
 # (use_persistent_claude / auto_update_claude_on_start removed: that layer
 #  targeted an obsolete cli.js path and fought the baked-binary model. Claude
 #  updates are delivered by bumping CLAUDE_VERSION and rebuilding the add-on.)
+#
+# Home Assistant MCP (ha-mcp) auto-wiring:
+#   enable_home_assistant_mcp — master switch (default true). When on AND a URL is
+#     set, the add-on registers the `homeassistant-ai/ha-mcp` server with Claude Code
+#     on boot so the terminal opens already connected (structured entity/service/
+#     config control via its `ha_*` tools). Set false to never touch Claude's MCP config.
+#   home_assistant_mcp_url — the ha-mcp server URL. Install the separate
+#     "Home Assistant MCP Server" add-on, then copy the full URL it prints in its log
+#     (e.g. http://<host>:9583/private_<secret>) and paste it here. The secret path IS
+#     the credential — no token is needed. EMPTY = no-op: the add-on touches nothing,
+#     so an existing manual wiring is left exactly as-is.
 options:
   auto_launch_claude: true
   dangerously_skip_permissions: false
+  enable_home_assistant_mcp: true
+  home_assistant_mcp_url: ""
   persistent_apk_packages: []
   persistent_pip_packages: []
 
 schema:
   auto_launch_claude: bool?
   dangerously_skip_permissions: bool?
+  enable_home_assistant_mcp: bool?
+  home_assistant_mcp_url: str?
   persistent_apk_packages:
     - str?
   persistent_pip_packages:
@@ -63,7 +78,9 @@ map:
 # surface; `manager` additionally exposes /addons/*, /backups.*, /host/.+ and
 # /docker/.+ — broad add-on/host/backup control we deliberately drop. HA
 # *operations* (managing other add-ons, the host, backups) should go through the
-# audited Home Assistant MCP server instead. NOTE: hassio_role is a fixed
+# audited Home Assistant MCP server instead — that privilege lives in the separate
+# ha-mcp add-on's own `manager` token, not ours; see the `home_assistant_mcp_url`
+# option above, which wires Claude Code to it on boot. NOTE: hassio_role is a fixed
 # manifest field users cannot raise from the HA UI; a power user who needs
 # shell-level manager access must run a local/forked copy with
 # `hassio_role: manager`. See README.md.
