@@ -33,3 +33,6 @@ dist/
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+# Local test-mount dir (run-addon mounts ./config -> /config); not part of the add-on
+/config/
