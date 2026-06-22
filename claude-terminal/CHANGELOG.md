@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.3.3
+
+### 🗑️ Dropped the deprecated `armv7` (32-bit ARM) architecture
+- Home Assistant ended support for `armv7` add-ons in **2025.12**. Removed it from
+  `config.yaml` (`arch`) and `build.yaml` (`build_from`); the add-on now targets
+  `aarch64` and `amd64`. 64-bit ARM devices (Raspberry Pi 3/4/5 on a 64-bit OS)
+  are unaffected — only 32-bit ARM installs, which current Home Assistant no
+  longer runs add-ons on, are dropped.
+
 ## 4.3.2
 
 ### 🧹 Maintenance
