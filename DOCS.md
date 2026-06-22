@@ -1,8 +1,13 @@
-# Claude Terminal Home Assistant Add-on Documentation
+# Claude Code for Home Assistant — Add-on Documentation
+
+> **Community add-on** — not affiliated with, endorsed by, or supported by
+> Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and
+> "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark
+> of the Open Home Foundation.
 
 ## Overview
 
-Claude Terminal provides a web-based terminal interface with Claude Code CLI pre-installed, allowing you to access Claude's powerful AI capabilities directly from your Home Assistant dashboard. Claude Code is an AI coding assistant by Anthropic that can help you with Home Assistant configuration, automation creation, debugging, and general coding tasks.
+Claude Code for Home Assistant provides a web-based terminal interface with the Claude Code CLI pre-installed, allowing you to access Claude's powerful AI capabilities directly from your Home Assistant dashboard. Claude Code is an AI coding assistant by Anthropic that can help you with Home Assistant configuration, automation creation, debugging, and general coding tasks.
 
 ## Installation
 
@@ -12,7 +17,7 @@ Follow these steps to install the add-on:
 2. Go to Settings -> Add-ons -> Add-on Store
 3. Click the three dots in the top right corner and select "Repositories"
 4. Add the URL of this repository and click "Add"
-5. Find the "Claude Terminal" add-on and click on it
+5. Find the "Claude Code for Home Assistant" add-on and click on it
 6. Click "Install"
 
 ## Configuration
@@ -35,7 +40,7 @@ All your files are stored in `/config/claude-code`, which persists between resta
 
 ## Home Assistant-Specific Use Cases
 
-Claude Terminal is particularly useful for Home Assistant tasks. Here are some example uses:
+This add-on is particularly useful for Home Assistant tasks. Here are some example uses:
 
 ### 1. Automation Creation and Debugging
 
@@ -102,7 +107,7 @@ Check the add-on logs for detailed information about any issues:
 
 ## Security Considerations
 
-Claude Terminal is designed with security in mind:
+This add-on is designed with security in mind:
 
 - The add-on runs in an isolated container
 - Your code and queries go directly to Anthropic's API

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Claude Code Clipboard Image Monitor for macOS
-Automatically uploads clipboard images to Claude Terminal Pro add-on
+Automatically uploads clipboard images to the Claude Code for Home Assistant add-on
 
 Usage:
     python3 mac-clipboard-monitor.py <ADDON_URL>
@@ -42,7 +42,7 @@ class ClipboardMonitor:
         try:
             response = requests.get(f"{self.addon_url}/health", timeout=5)
             if response.status_code == 200:
-                print(f"✓ Connected to Claude Terminal Pro at {self.addon_url}")
+                print(f"✓ Connected to Claude Code for Home Assistant at {self.addon_url}")
             else:
                 print(f"⚠ Warning: Server responded with status {response.status_code}")
         except requests.exceptions.RequestException as e:
@@ -78,7 +78,7 @@ class ClipboardMonitor:
         return hashlib.md5(data).hexdigest()
 
     def upload_image(self, image_data):
-        """Upload image to Claude Terminal Pro"""
+        """Upload image to the Claude Code for Home Assistant add-on"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
         filename = f"clipboard-{timestamp}.png"
 

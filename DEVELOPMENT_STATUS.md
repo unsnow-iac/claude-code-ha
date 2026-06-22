@@ -1,7 +1,7 @@
-# Claude Terminal Add-on: Interactive Session Picker - Development Status
+# Claude Code for Home Assistant: Interactive Session Picker - Development Status
 
 ## Project Overview
-Implementing an interactive session picker feature for the Claude Terminal Home Assistant add-on that allows users to choose how to launch Claude (new session, continue, resume, custom command, or shell access).
+Implementing an interactive session picker feature for the Claude Code for Home Assistant add-on that allows users to choose how to launch Claude (new session, continue, resume, custom command, or shell access).
 
 ## Current Status: 🟡 **90% Complete - Authentication Persistence Issue**
 

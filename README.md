@@ -1,6 +1,8 @@
-# Claude Terminal Pro for Home Assistant
+# Claude Code for Home Assistant
 
-An enhanced Home Assistant add-on that integrates Anthropic's Claude Code CLI with persistent package management and advanced features.
+A Home Assistant add-on that runs Anthropic's Claude Code CLI in a browser terminal, with persistent package management and image-paste support. A maintained, community fork of the now-dormant upstream add-on.
+
+> **Community add-on** — not affiliated with, endorsed by, or supported by Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark of the Open Home Foundation. Claude Code itself is subject to Anthropic's terms.
 
 ---
 
@@ -37,7 +39,7 @@ These plugins provide Claude Code with specialized tools and context for Home As
 
 ### Installation
 
-Run this command inside Claude Terminal Pro:
+Run this command inside the terminal:
 
 ```bash
 npx claude-plugins install @ESJavadex/claude-homeassistant-plugins/homeassistant-config
@@ -47,12 +49,11 @@ This creates a `CLAUDE.md` file in your Home Assistant config directory with con
 
 ## Fork Attribution
 
-This project is a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) created by Tom Cassady.
+Forked from [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) by Javier Santos, itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady. Maintained by [unsnow-iac](https://github.com/unsnow-iac).
 
-**Original project:** [https://github.com/heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons)
-**Maintained by:** Javier Santos ([@esjavadex](https://github.com/esjavadex))
+This fork exists to fix breakages that left the upstream add-on unusable (see the [unsnow fork](#️-unsnow-fork) section above) and to keep it actively maintained.
 
-### What's Enhanced in This Fork
+### What earlier forks added
 
 - **Image Paste Support**: Upload images via paste (Ctrl+V), drag-drop, or upload button for Claude analysis
 - **Persistent Package Management**: Install system and Python packages that survive reboots
@@ -69,12 +70,12 @@ To add this repository to your Home Assistant instance:
 1. Go to **Settings** → **Add-ons** → **Add-on Store**
 2. Click the three dots menu in the top right corner
 3. Select **Repositories**
-4. Add the URL: `https://github.com/esjavadex/claude-code-ha`
+4. Add the URL: `https://github.com/unsnow-iac/claude-code-ha`
 5. Click **Add**
 
 ## Add-ons
 
-### Claude Terminal Pro
+### Claude Code for Home Assistant
 
 A web-based terminal interface with Claude Code CLI pre-installed and enhanced package management. This add-on provides a terminal environment directly in your Home Assistant dashboard, allowing you to use Claude's powerful AI capabilities for coding, automation, and configuration tasks.
 
@@ -89,7 +90,7 @@ A web-based terminal interface with Claude Code CLI pre-installed and enhanced p
   - Home Assistant automation help
   - Learning resources
 
-#### Enhanced Features (Pro)
+#### Enhanced Features
 - **Image Paste Support**: Paste (Ctrl+V), drag-drop, or upload images for Claude analysis
   - Lightweight service (~10MB RAM, ARM-compatible)
   - Supports JPEG, PNG, GIF, WebP, SVG (10MB limit)
@@ -111,7 +112,7 @@ A web-based terminal interface with Claude Code CLI pre-installed and enhanced p
 
 ## Community Tools
 
-Tools built by the community to enhance Claude Terminal:
+Tools built by the community to enhance Claude Code for Home Assistant:
 
 - **[ha-ws-client-go](https://github.com/schoolboyqueue/home-assistant-blueprints/tree/main/scripts/ha-ws-client-go)** by [@schoolboyqueue](https://github.com/schoolboyqueue) - Lightweight Go CLI for Home Assistant WebSocket API. Gives Claude direct access to entity states, service calls, automation traces, and real-time monitoring. Single binary, no dependencies.
 
@@ -122,7 +123,8 @@ If you have any questions or issues with this add-on, please create an issue in 
 ## Credits
 
 **Original Creator:** Tom Cassady ([@heytcass](https://github.com/heytcass)) - Created the initial Claude Terminal add-on
-**Fork Maintainer:** Javier Santos ([@esjavadex](https://github.com/esjavadex)) - Added persistent package management and enhancements
+**Earlier Fork:** Javier Santos ([@esjavadex](https://github.com/esjavadex)) - Added persistent package management and enhancements
+**Current Maintainer:** [unsnow-iac](https://github.com/unsnow-iac) - Alpine 3.21/statx fix, persist-install repair, public release
 
 This add-on was created and enhanced with the assistance of Claude Code itself! The development process, debugging, and documentation were all completed using Claude's AI capabilities.
 

@@ -99,7 +99,7 @@ You can configure packages to install automatically every time the add-on starts
 
 ### Via Home Assistant UI
 
-1. Go to **Settings** → **Add-ons** → **Claude Terminal**
+1. Go to **Settings** → **Add-ons** → **Claude Code for Home Assistant**
 2. Click **Configuration** tab
 3. Add your packages:
 
@@ -380,7 +380,7 @@ du -sh /data/packages/*
 
 If you encounter issues:
 
-1. Check the add-on logs: **Settings** → **Add-ons** → **Claude Terminal** → **Log**
+1. Check the add-on logs: **Settings** → **Add-ons** → **Claude Code for Home Assistant** → **Log**
 2. Run `persist-install --list` to verify installations
 3. Report issues on GitHub with log output
 4. Include your package list and error messages

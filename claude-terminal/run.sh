@@ -309,9 +309,9 @@ get_claude_launch_command() {
     if [ "$auto_launch_claude" = "true" ]; then
         # Auto-launch Claude first, then fall back to session picker on exit
         if [ -f /usr/local/bin/claude-session-picker ]; then
-            echo "clear && echo 'Welcome to Claude Terminal!' && echo '' && echo 'Starting Claude...' && sleep 1 && claude ${claude_flags}; /usr/local/bin/claude-session-picker"
+            echo "clear && echo 'Welcome to Claude Code!' && echo '' && echo 'Starting Claude...' && sleep 1 && claude ${claude_flags}; /usr/local/bin/claude-session-picker"
         else
-            echo "clear && echo 'Welcome to Claude Terminal!' && echo '' && echo 'Starting Claude...' && sleep 1 && claude ${claude_flags}"
+            echo "clear && echo 'Welcome to Claude Code!' && echo '' && echo 'Starting Claude...' && sleep 1 && claude ${claude_flags}"
         fi
     else
         # Show interactive session picker (has its own while-true loop)
@@ -319,7 +319,7 @@ get_claude_launch_command() {
             echo "clear && /usr/local/bin/claude-session-picker"
         else
             bashio::log.warning "Session picker not found, falling back to auto-launch"
-            echo "clear && echo 'Welcome to Claude Terminal!' && echo '' && echo 'Starting Claude...' && sleep 1 && claude"
+            echo "clear && echo 'Welcome to Claude Code!' && echo '' && echo 'Starting Claude...' && sleep 1 && claude"
         fi
     fi
 }
@@ -426,7 +426,7 @@ run_health_check() {
 
 # Main execution
 main() {
-    bashio::log.info "Initializing Claude Terminal add-on..."
+    bashio::log.info "Initializing Claude Code for Home Assistant add-on..."
 
     # Run diagnostics first (especially helpful for VirtualBox issues)
     run_health_check

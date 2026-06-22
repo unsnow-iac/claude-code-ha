@@ -1,18 +1,27 @@
-# Claude Terminal Pro
+# Claude Code for Home Assistant
 
-An enhanced terminal interface for Anthropic's Claude Code CLI in Home Assistant.
+A web-based terminal for Anthropic's Claude Code CLI in Home Assistant.
+
+> **Community add-on** — not affiliated with, endorsed by, or supported by
+> Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and
+> "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark
+> of the Open Home Foundation. Claude Code itself is subject to Anthropic's terms.
 
 ## About
 
-Claude Terminal Pro is an enhanced fork of the original Claude Terminal add-on, providing a web-based terminal with Claude Code CLI pre-installed plus persistent package management capabilities. Access Claude's powerful AI capabilities directly from your Home Assistant dashboard with the added benefit of installing and persisting custom packages across restarts.
+Claude Code for Home Assistant is a maintained, community fork of the original
+Claude Terminal add-on, providing a web-based terminal with the Claude Code CLI
+pre-installed plus persistent package management. Access Claude's capabilities
+directly from your Home Assistant dashboard, with the added benefit of installing
+and persisting custom packages across restarts.
 
 ## Installation
 
 1. Add this repository to your Home Assistant add-on store:
    - Go to Settings → Add-ons → Add-on Store
    - Click the menu (⋮) and select Repositories
-   - Add: `https://github.com/esjavadex/claude-code-ha`
-2. Install the Claude Terminal Pro add-on
+   - Add: `https://github.com/unsnow-iac/claude-code-ha`
+2. Install the Claude Code for Home Assistant add-on
 3. Start the add-on
 4. Click "OPEN WEB UI" to access the terminal
 5. On first use, follow the OAuth prompts to log in to your Anthropic account
@@ -37,17 +46,6 @@ The add-on offers several configuration options:
 - Configure APK and pip packages to auto-install on startup
 - Packages are stored in `/data/packages` and survive restarts
 
-### Optional Persistent Claude Code
-- **Default**: `use_persistent_claude: false`
-- When enabled, the add-on will look for a Claude Code install in `/data/npm/` and use it instead of the version baked into the image
-- This is intended for advanced users who want a persistent override without changing the default supported behavior
-
-### Optional Startup Updates
-- **Default**: `auto_update_claude_on_start: false`
-- Only relevant if `use_persistent_claude: true`
-- When enabled, the add-on will update Claude Code in `/data/npm/` on each startup
-- Safer default is to keep this off and update manually only when needed
-
 **Example Configuration**:
 ```yaml
 auto_launch_claude: false
@@ -57,26 +55,27 @@ persistent_apk_packages:
   - git
 persistent_pip_packages:
   - requests
-use_persistent_claude: true
-auto_update_claude_on_start: false
 ```
 
-Your OAuth credentials are stored in the `/config/claude-config` directory and will persist across add-on updates and restarts, so you won't need to log in again.
+Your OAuth credentials are stored in the `/config/claude-config` directory and
+will persist across add-on updates and restarts, so you won't need to log in
+again.
 
-If you enable `use_persistent_claude`, install the persistent Claude Code version once from a shell inside the add-on:
+### Updating Claude Code
 
-```bash
-NPM_CONFIG_PREFIX=/data/npm npm install -g @anthropic-ai/claude-code@latest --prefer-online
-```
-
-After that, restarts will continue using the persistent version automatically.
+In-container self-update is disabled by design — the install is a self-contained
+native binary baked into the image, and an in-place `claude update` can brick the
+next launch. New Claude versions ship by bumping `ARG CLAUDE_VERSION` and
+rebuilding the add-on (see the repository README). `/data` is preserved across
+rebuilds, so updating is non-destructive.
 
 ## Usage
 
-Claude launches automatically when you open the terminal. You can also start Claude manually with:
+Claude launches automatically when you open the terminal. You can also start
+Claude manually with:
 
 ```bash
-node /usr/local/bin/claude
+claude
 ```
 
 ### Common Commands
@@ -87,7 +86,9 @@ node /usr/local/bin/claude
 - `claude process myfile.py` - Have Claude analyze a file
 - `claude --editor` - Start an interactive editor session
 
-The terminal starts directly in your `/config` directory, giving you immediate access to all your Home Assistant configuration files. This makes it easy to get help with your configuration, create automations, and troubleshoot issues.
+The terminal starts directly in your `/config` directory, giving you immediate
+access to all your Home Assistant configuration files. This makes it easy to get
+help with your configuration, create automations, and troubleshoot issues.
 
 ## Features
 
@@ -99,7 +100,7 @@ The terminal starts directly in your `/config` directory, giving you immediate a
 - **Simple Setup**: Uses OAuth for easy authentication
 - **Home Assistant Integration**: Access directly from your dashboard
 
-### Enhanced Features (Pro)
+### Enhanced Features
 - **Persistent Packages**: Install system (APK) and Python (pip) packages that survive restarts
 - **Auto-Install Configuration**: Set packages to auto-install on startup
 - **Simple Management**: Use `persist-install` command for easy package installation
@@ -107,7 +108,7 @@ The terminal starts directly in your `/config` directory, giving you immediate a
 
 ## Troubleshooting
 
-- If Claude doesn't start automatically, try running `node /usr/local/bin/claude -i` manually
+- If Claude doesn't start automatically, try running `claude -i` manually
 - If you see permission errors, try restarting the add-on
 - If you have authentication issues, try logging out and back in
 - Check the add-on logs for any error messages
@@ -115,6 +116,8 @@ The terminal starts directly in your `/config` directory, giving you immediate a
 ## Credits
 
 **Original Creator:** Tom Cassady ([@heytcass](https://github.com/heytcass))
-**Fork Maintainer:** Javier Santos ([@esjavadex](https://github.com/esjavadex))
+**Earlier Fork:** Javier Santos ([@esjavadex](https://github.com/esjavadex))
+**Current Maintainer:** [unsnow-iac](https://github.com/unsnow-iac)
 
-This add-on was created and enhanced with the assistance of Claude Code itself! The development process, debugging, and documentation were all completed using Claude's AI capabilities - a perfect demonstration of what this add-on can help you accomplish.
+Forked from [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha),
+itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons).

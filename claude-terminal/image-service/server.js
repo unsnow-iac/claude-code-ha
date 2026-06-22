@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Claude Terminal Pro - Image Upload Service
+ * Claude Code for Home Assistant - Image Upload Service
  *
  * Lightweight Express server that handles image uploads from browser paste/drag-drop.
  * Designed for resource-constrained environments (Raspberry Pi).
@@ -144,7 +144,7 @@ app.use((err, req, res, next) => {
 const server = http.createServer(app);
 
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Claude Terminal Image Service running on port ${PORT}`);
+    console.log(`Claude Code Image Service running on port ${PORT}`);
     console.log(`Upload directory: ${UPLOAD_DIR}`);
     console.log(`ttyd terminal on port: ${TTYD_PORT}`);
     console.log(`Terminal proxy available at /terminal/`);

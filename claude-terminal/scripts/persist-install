@@ -260,7 +260,7 @@ main() {
     # Check if running in the add-on
     if [ ! -d "/data" ]; then
         echo "❌ Error: /data directory not found"
-        echo "This script must run inside the Claude Terminal add-on"
+        echo "This script must run inside the Claude Code for Home Assistant add-on"
         exit 1
     fi
 

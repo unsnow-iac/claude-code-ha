@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 
-# Persistent Package Manager for Claude Terminal
+# Persistent Package Manager for Claude Code for Home Assistant
 # Installs packages to /data (persistent storage) instead of ephemeral container
 
 set -e

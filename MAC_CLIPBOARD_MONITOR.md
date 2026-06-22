@@ -1,6 +1,6 @@
-# Mac Clipboard Monitor for Claude Terminal Pro
+# Mac Clipboard Monitor for Claude Code for Home Assistant
 
-Automatically upload images from your Mac clipboard to Claude Terminal Pro running on your Raspberry Pi.
+Automatically upload images from your Mac clipboard to the Claude Code for Home Assistant add-on running on your Raspberry Pi.
 
 ## How It Works
 
@@ -47,7 +47,7 @@ python3 mac-clipboard-monitor.py http://homeassistant.local:8123
 Once running, the monitor will:
 
 ```
-✓ Connected to Claude Terminal Pro at http://homeassistant.local:8123
+✓ Connected to Claude Code for Home Assistant at http://homeassistant.local:8123
 
 Clipboard monitor started. Press Ctrl+C to stop.
 Monitoring clipboard for images...
@@ -62,7 +62,7 @@ Images will be uploaded to: http://homeassistant.local:8123/upload
 
 1. **Copy any image** (screenshot, file, web image) with **Cmd+C**
 2. **Monitor uploads it** automatically to your Raspberry Pi
-3. **Path is in your clipboard** - switch to Claude Terminal
+3. **Path is in your clipboard** - switch to the terminal
 4. **Paste** (Cmd+V) into Claude: `/data/images/clipboard-123.png`
 5. **Ask Claude** to analyze it!
 

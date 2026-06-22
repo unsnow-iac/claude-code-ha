@@ -1,14 +1,16 @@
-# Claude Terminal Pro for Home Assistant
+# Claude Code for Home Assistant
 
-An enhanced, web-based terminal with Claude Code CLI and persistent package management for Home Assistant.
+A web-based terminal with the Claude Code CLI and persistent package management for Home Assistant.
 
-![Claude Terminal Screenshot](screenshot.png)
+![Claude Code terminal screenshot](screenshot.png)
 
-*Claude Terminal Pro running in Home Assistant*
+*The Claude Code terminal running in Home Assistant*
 
-> **Fork Attribution:** This is an enhanced fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady, maintained by Javier Santos ([@esjavadex](https://github.com/esjavadex)).
+> **Community add-on** — not affiliated with, endorsed by, or supported by Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark of the Open Home Foundation.
 
-## What is Claude Terminal Pro?
+> **Fork Attribution:** Forked from [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) by Javier Santos, itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady. Maintained by [unsnow-iac](https://github.com/unsnow-iac).
+
+## What is this add-on?
 
 This add-on provides a web-based terminal interface with Claude Code CLI pre-installed plus persistent package management, allowing you to use Claude's powerful AI capabilities directly from your Home Assistant dashboard. It gives you direct access to Anthropic's Claude AI assistant through a terminal, ideal for:
 
@@ -31,13 +33,12 @@ This add-on provides a web-based terminal interface with Claude Code CLI pre-ins
 - **Secure Credential Management**: Persistent authentication with safe credential storage
 - **Automatic Recovery**: Built-in fallbacks and error handling for reliable operation
 
-### Enhanced Features (Pro)
+### Enhanced Features
 - **Persistent Package Management**: Install APK and pip packages that survive container restarts
 - **Auto-Install Configuration**: Configure packages to install automatically on startup
 - **Python Virtual Environment**: Isolated Python environment in `/data/packages`
 - **Simple Commands**: Use `persist-install` for easy package management
 - **Persistent Storage**: All packages stored in `/data` which survives all reboots
-- **Optional Persistent Claude Override**: Advanced users can opt into a Claude Code install stored in `/data/npm`
 
 ## Quick Start
 
@@ -65,8 +66,8 @@ claude-logout
 1. Add this repository to your Home Assistant add-on store:
    - Go to Settings → Add-ons → Add-on Store
    - Click the menu (⋮) and select Repositories
-   - Add: `https://github.com/esjavadex/claude-code-ha`
-2. Install the Claude Terminal Pro add-on
+   - Add: `https://github.com/unsnow-iac/claude-code-ha`
+2. Install the Claude Code for Home Assistant add-on
 3. Start the add-on
 4. Click "OPEN WEB UI" or the sidebar icon to access
 5. On first use, follow the OAuth prompts to log in to your Anthropic account
@@ -78,7 +79,6 @@ The add-on works out of the box, but also supports a few optional advanced setti
 - **Port**: Web interface runs on port 7681
 - **Authentication**: OAuth with Anthropic (credentials stored securely in `/config/claude-config/`)
 - **Terminal**: Full bash environment with Claude Code CLI pre-installed
-- **Persistent Claude override**: Optional `use_persistent_claude` / `auto_update_claude_on_start`
 - **Volumes**: Access to both `/config` (Home Assistant) and `/addons` (for development)
 
 ## Troubleshooting
@@ -112,7 +112,7 @@ test-endpoint
 
 ## Architecture
 
-- **Base Image**: Home Assistant Alpine Linux base (3.19)
+- **Base Image**: Home Assistant Alpine Linux base (3.21; musl 1.2.5, which exports the `statx` symbol newer Claude builds require)
 - **Container Runtime**: Compatible with Docker/Podman
 - **Web Terminal**: ttyd for browser-based access
 - **Process Management**: s6-overlay for reliable service startup
@@ -149,7 +149,9 @@ For detailed usage instructions, see the [documentation](DOCS.md).
 
 ## Version History
 
-### v1.0.2 (Current) - Security & Bug Fix Release
+For current releases see [CHANGELOG.md](CHANGELOG.md). Older highlights:
+
+### v1.0.2 - Security & Bug Fix Release
 - 🔒 **CRITICAL**: Fixed dangerous filesystem operations
 - 🐛 Added missing armv7 architecture support
 - 🔧 Pinned NPM packages and improved error handling
@@ -175,7 +177,8 @@ For detailed usage instructions, see the [documentation](DOCS.md).
 ## Credits
 
 **Original Creator:** Tom Cassady ([@heytcass](https://github.com/heytcass)) - Created the initial Claude Terminal add-on
-**Fork Maintainer:** Javier Santos ([@esjavadex](https://github.com/esjavadex)) - Added persistent package management and enhancements
+**Earlier Fork:** Javier Santos ([@esjavadex](https://github.com/esjavadex)) - Added persistent package management and enhancements
+**Current Maintainer:** [unsnow-iac](https://github.com/unsnow-iac) - Alpine 3.21/statx fix, persist-install repair, public release
 
 This add-on was created and enhanced with the assistance of Claude Code itself! The development process, debugging, and documentation were all completed using Claude's AI capabilities - a perfect demonstration of what this add-on can help you accomplish.
 
