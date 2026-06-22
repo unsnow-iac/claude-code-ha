@@ -21,6 +21,16 @@
   rather than duplicated; the entry the add-on manages is named `ha-mcp` and is
   updated to match the option. The secret URL is never written to the log.
 
+### 🧭 Onboarding hint for Claude
+- On boot the add-on seeds a short orientation note into the **user-level** Claude
+  memory (`~/.claude/CLAUDE.md`) so Claude knows it's in the HA add-on and prefers the
+  `ha-mcp` `ha_*` tools for HA operations over raw shell. Master switch
+  **`enable_onboarding_hint`** (default `true`); set `false` to remove it.
+- **Never touches your `/config`.** It manages only a marker-delimited block in the
+  add-on's own home dir, which Claude merges with — and never overrides — your
+  `/config/CLAUDE.md`. Idempotent (no per-boot churn) and refuses to edit a file whose
+  markers look hand-modified.
+
 ## 4.4.0
 
 A hygiene release batching least-privilege, supply-chain, robustness, and docs

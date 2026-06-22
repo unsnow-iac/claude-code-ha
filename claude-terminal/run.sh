@@ -390,6 +390,109 @@ setup_ha_mcp() {
     fi
 }
 
+# Seed an add-on-owned onboarding hint into the USER-level Claude memory
+# ($HOME/.claude/CLAUDE.md). Claude Code reads this as user memory and MERGES it
+# with the project's /config/CLAUDE.md without overriding — so we orient Claude to
+# this HA environment WITHOUT ever reading or writing the user's /config files.
+#
+# We manage ONLY a marker-delimited block, so any other content in the file (or the
+# whole /config tree) is never touched. Idempotent: an identical block is left as-is.
+setup_onboarding_hint() {
+    local enabled file marker_start marker_end body desired current tmp
+    enabled=$(bashio::config 'enable_onboarding_hint' 'true')
+    file="$HOME/.claude/CLAUDE.md"
+    marker_start="<!-- claude-code-ha:onboarding:start -->"
+    marker_end="<!-- claude-code-ha:onboarding:end -->"
+
+    mkdir -p "$HOME/.claude"
+
+    # Body in a QUOTED heredoc (no shell expansion, backticks free); markers are
+    # added from the variables so there is a single source of truth for them.
+    body=$(cat <<'EOF'
+# Claude Code for Home Assistant — environment notes
+
+You are in the **Claude Code for Home Assistant** add-on: a browser terminal that
+starts in `/config`, the Home Assistant configuration directory.
+
+- **Prefer the Home Assistant MCP server for HA operations.** If a `home-assistant` /
+  `ha-mcp` MCP server is connected, use its `ha_*` tools (entities, services,
+  automations, scenes, dashboards, add-ons, backups) instead of raw shell or `curl`.
+- **Use this shell for authoring and config**, not control: read and edit the YAML
+  under `/config`, run `git`, and let the MCP handle live HA operations.
+- This shell carries only a reduced `homeassistant` Supervisor token (not `manager`),
+  so add-on / host / backup operations must go through the MCP server.
+- Use `persist-install <pkg>` for packages that must survive restarts (plain
+  `apk add` / `pip install` are lost when the container restarts).
+EOF
+)
+    desired=$(printf '%s\n%s\n%s' "$marker_start" "$body" "$marker_end")
+
+    # Disabled: remove only our well-formed block; leave any other content intact.
+    if [ "$enabled" != "true" ]; then
+        if [ -f "$file" ] && grep -qF "$marker_start" "$file" && grep -qF "$marker_end" "$file"; then
+            tmp=$(mktemp)
+            awk -v s="$marker_start" -v e="$marker_end" '
+                index($0, s){drop=1}
+                !drop{print}
+                drop && index($0, e){drop=0; next}
+            ' "$file" > "$tmp"
+            if grep -q '[^[:space:]]' "$tmp"; then
+                mv "$tmp" "$file"
+            else
+                rm -f "$tmp" "$file"
+            fi
+            bashio::log.info "Onboarding hint removed (enable_onboarding_hint=false)"
+        fi
+        return 0
+    fi
+
+    # Enabled, no file yet -> create with just our block.
+    if [ ! -f "$file" ]; then
+        printf '%s\n' "$desired" > "$file"
+        bashio::log.info "Onboarding hint installed: $file"
+        return 0
+    fi
+
+    # No managed block yet -> append after existing content.
+    if ! grep -qF "$marker_start" "$file"; then
+        printf '\n%s\n' "$desired" >> "$file"
+        bashio::log.info "Onboarding hint added: $file"
+        return 0
+    fi
+
+    # Start marker present but end marker missing -> malformed (user truncated it).
+    # Do NOT strip to EOF; leave the file untouched to avoid deleting user content.
+    if ! grep -qF "$marker_end" "$file"; then
+        bashio::log.warning "Onboarding hint markers malformed in $file; leaving it untouched."
+        return 0
+    fi
+
+    # Already current -> nothing to do (no per-boot churn).
+    current=$(awk -v s="$marker_start" -v e="$marker_end" '
+        index($0, s){keep=1}
+        keep{print}
+        keep && index($0, e){exit}
+    ' "$file")
+    if [ "$current" = "$desired" ]; then
+        return 0
+    fi
+
+    # Stale block -> strip it (inclusive) and re-append the fresh one.
+    tmp=$(mktemp)
+    awk -v s="$marker_start" -v e="$marker_end" '
+        index($0, s){drop=1}
+        !drop{print}
+        drop && index($0, e){drop=0; next}
+    ' "$file" > "$tmp"
+    if grep -q '[^[:space:]]' "$tmp"; then
+        printf '\n%s\n' "$desired" >> "$tmp"
+    else
+        printf '%s\n' "$desired" > "$tmp"
+    fi
+    mv "$tmp" "$file"
+    bashio::log.info "Onboarding hint updated: $file"
+}
+
 # Legacy monitoring functions removed - using simplified /data approach
 
 # Determine Claude launch command based on configuration
@@ -541,6 +644,7 @@ main() {
     setup_session_picker
     setup_persistent_packages
     setup_ha_mcp
+    setup_onboarding_hint
     start_web_terminal
 }
 
