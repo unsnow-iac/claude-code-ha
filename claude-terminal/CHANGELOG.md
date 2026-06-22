@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.3.2
+
+### 🧹 Maintenance
+- **Removed the redundant `panel_admin: true`** from `config.yaml`. `true` is
+  already the default, so the line was a no-op; the new add-on manifest linter
+  (added to CI) flags explicitly-set defaults. No functional change — the panel
+  remains admin-only.
+
 ## 4.3.1
 
 ### 🧹 Maintenance
