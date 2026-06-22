@@ -48,11 +48,18 @@ ports_description:
 #     (e.g. http://<host>:9583/private_<secret>) and paste it here. The secret path IS
 #     the credential — no token is needed. EMPTY = no-op: the add-on touches nothing,
 #     so an existing manual wiring is left exactly as-is.
+#
+# enable_onboarding_hint — master switch (default true). Seeds a short add-on-owned
+#   orientation note into the USER-level Claude memory ($HOME/.claude/CLAUDE.md, which
+#   Claude merges with your project /config/CLAUDE.md). It NEVER reads or writes your
+#   /config files — only a marker-delimited block in the add-on's own home dir. Set
+#   false to remove that block.
 options:
   auto_launch_claude: true
   dangerously_skip_permissions: false
   enable_home_assistant_mcp: true
   home_assistant_mcp_url: ""
+  enable_onboarding_hint: true
   persistent_apk_packages: []
   persistent_pip_packages: []
 
@@ -61,6 +68,7 @@ schema:
   dangerously_skip_permissions: bool?
   enable_home_assistant_mcp: bool?
   home_assistant_mcp_url: str?
+  enable_onboarding_hint: bool?
   persistent_apk_packages:
     - str?
   persistent_pip_packages:

@@ -1,165 +1,103 @@
 # Claude Code for Home Assistant
 
-A Home Assistant add-on that runs Anthropic's Claude Code CLI in a browser terminal, with persistent package management and image-paste support. A maintained, community fork of the now-dormant upstream add-on.
+A Home Assistant add-on that runs Anthropic's **Claude Code CLI** in a browser terminal — opened from your HA sidebar, starting in `/config` so Claude can read and edit your configuration in place. Persistent package installs and image paste included.
 
 > **Community add-on** — not affiliated with, endorsed by, or supported by Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark of the Open Home Foundation. Claude Code itself is subject to Anthropic's terms.
 
+This is a maintained community fork of [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) — see [About this fork](#about-this-fork).
+
 ---
 
-## ⚙️ unsnow fork
+## What it is
 
-This is a maintenance fork of [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha), kept on the `main` branch of [`unsnow-iac/claude-code-ha`](https://github.com/unsnow-iac/claude-code-ha). It exists to fix issues that broke the environment in practice:
+A browser-terminal Claude Code CLI for Home Assistant, opened from the sidebar over the **authenticated ingress panel** (no host port by default). The terminal starts in `/config`, so Claude can:
+
+- Write and edit automations, scripts, and YAML config in place
+- Debug your setup and run `git`
+- Install system/Python packages that persist across restarts
+- Analyze pasted images (Ctrl+V / drag-drop / upload)
+
+The Claude binary is **pinned** to a known-good version and updated by rebuilding the add-on — not from inside the container (see [Updating Claude Code](#updating-claude-code)).
+
+## Install
+
+1. **Settings → Add-ons → Add-on Store**, open the **⋮** menu, choose **Repositories**.
+2. Add `https://github.com/unsnow-iac/claude-code-ha` and click **Add**.
+3. Install **Claude Code for Home Assistant**, then **Start** it.
+4. Open it from the **Claude Code** sidebar panel (ingress — there's no host-port web UI by default).
+5. On first launch, follow the OAuth prompt to log in to your Anthropic account.
+
+## Configuration
+
+The add-on works out of the box; every option below is optional.
+
+| Option | Default | What it does |
+|---|---|---|
+| `auto_launch_claude` | `true` | Auto-start Claude on open, vs. showing the session picker. |
+| `dangerously_skip_permissions` | `false` | Run Claude with `--dangerously-skip-permissions` (unrestricted file access). |
+| `enable_home_assistant_mcp` | `true` | Auto-wire the ha-mcp server on boot (see [below](#pairs-with-the-home-assistant-mcp-server)). |
+| `home_assistant_mcp_url` | `""` | ha-mcp server URL from its add-on log. **Empty = no-op** (nothing is wired). |
+| `enable_onboarding_hint` | `true` | Seed a short orientation note into the add-on's own `~/.claude/CLAUDE.md` (never your `/config/CLAUDE.md`). |
+| `persistent_apk_packages` | `[]` | System (apk) packages to auto-install on boot. |
+| `persistent_pip_packages` | `[]` | Python (pip) packages to auto-install on boot. |
+
+> **Don't expose the host ports.** ttyd runs unauthenticated, so the `7680`/`7681` host ports are unset by default and should stay that way — use the ingress panel.
+
+## Pairs with the Home Assistant MCP server
+
+Treat this add-on as a **shell + config editor**, and pair it with the **Home Assistant MCP server** (ha-mcp) add-on for *operating* Home Assistant:
+
+- **Operate HA via the MCP** — call services, query state, manage entities/areas/other add-ons, the host, and backups through an audited, structured channel.
+- **Author config in this terminal** — edit the YAML under `/config`, run `git`, install packages, and have Claude write changes directly into your configuration.
+
+By design this add-on carries only a **`homeassistant`**-level Supervisor token (not `manager`): `ha core check`/`restart`/`info` keep working, but shell-level control of other add-ons, the host, Docker, and backups is intentionally dropped — route those through the MCP. (The `manager` privilege lives in the *separate* ha-mcp add-on's own token, not this one.) Power users who need shell `manager` access must run a local copy with `hassio_role: manager` (a fixed manifest field, not raisable from the HA UI).
+
+### Auto-wiring ha-mcp (one paste)
+
+You don't have to wire the MCP server by hand. Install the **Home Assistant MCP Server** ([`homeassistant-ai/ha-mcp`](https://github.com/homeassistant-ai/ha-mcp)) add-on, open its **Log** tab, copy the server URL it prints (`http://<host>:9583/private_<secret>`), and paste it into this add-on's **`home_assistant_mcp_url`** option. On the next start the terminal opens already connected — Claude can call the `ha_*` tools with no `claude mcp add`.
+
+- The secret path *is* the credential; **no token** is required. ha-mcp's own `manager` token (not this add-on's) does the work, so nothing about this add-on's reduced privilege changes.
+- Leaving `home_assistant_mcp_url` **empty** disables auto-wiring and touches no Claude config — if you already wired ha-mcp yourself, it's left as-is.
+- If ha-mcp is reinstalled its secret path rotates; if the `ha_*` tools stop working, re-copy the new URL from its log into the option.
+- With `dangerously_skip_permissions: true`, MCP tool calls aren't prompted on the Claude side — for unattended use, consider ha-mcp's own `read_only_mode` or `enable_tool_security_policies` as a server-side guard.
+
+## Features
+
+- **Persistent package management** — `persist-install <pkg>` copies binaries and their `ldd`-resolved libraries into `/data`, surviving restarts and container recreation (plain `apk add`/`pip install` don't). Auto-install on boot via `persistent_apk_packages` / `persistent_pip_packages`; isolated Python venv included.
+- **Image paste** — paste (Ctrl+V), drag-drop, or upload images for Claude (JPEG/PNG/GIF/WebP/SVG, 10 MB limit); lightweight service (~10 MB RAM, ARM-friendly); stored in `/data/images/`.
+- **Pinned, baked toolchain** — Claude, `ttyd`, and `tmux` are baked into the image, so the terminal starts even when Alpine repos are unreachable.
+- **Persistent auth & config** — OAuth credentials and settings live under `/data`, preserved across restarts and rebuilds.
+- **Ingress-only by default** — served through the authenticated HA panel; no open host port.
+
+## About this fork
+
+Maintained by [unsnow-iac](https://github.com/unsnow-iac) on the `main` branch of [`unsnow-iac/claude-code-ha`](https://github.com/unsnow-iac/claude-code-ha). It is a maintenance fork of [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) by Javier Santos, itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady. It exists to fix issues that broke the add-on in practice:
 
 | Fixed | Why it mattered |
 |---|---|
 | **Base image → Alpine 3.21** (was 3.19) | Alpine 3.19 ships musl 1.2.4, which lacks the `statx` symbol current Claude Code native builds require — newer binaries crashed at launch with `Error relocating ...: statx: symbol not found`. 3.21 ships musl 1.2.5. |
-| **Claude pinned + baked; `ttyd`/`tmux` baked** | Reproducible builds (`ARG CLAUDE_VERSION`); web terminal and tmux no longer depend on `apk` reaching the network at every boot. |
+| **Claude pinned + baked; `ttyd`/`tmux` baked** | Reproducible builds (`ARG CLAUDE_VERSION`); the terminal no longer depends on `apk` reaching the network at every boot. |
 | **`persist-install` rewritten** | `apk info -L` lists paths *without* a leading slash, so the old `== /usr/bin/*` test never matched — the script reported success but copied nothing, so packages vanished on container recreation. Now normalises paths and resolves real deps via `ldd`. |
-| **Removed the `persistent_claude` layer** | It checked an obsolete `cli.js` path (always warned, silently fell back) and `npm install`-ed `@latest` into `/data/npm`, fighting the baked-binary model. The launcher is now force-linked to the baked binary on every boot, so a stray `claude update` self-heals on restart. |
+| **Removed the `persistent_claude` layer** | It chased an obsolete `cli.js` path and `npm install`-ed `@latest` into `/data/npm`, fighting the baked-binary model. The launcher is now force-linked to the baked binary each boot, so a stray `claude update` self-heals on restart. |
 
 ### Updating Claude Code
 
 In-container self-update is disabled by design. To ship a new Claude version:
 
 1. Bump `ARG CLAUDE_VERSION` in `claude-terminal/Dockerfile`.
-2. Bump `version:` in `claude-terminal/config.yaml` and `claude-terminal/build.yaml`.
+2. Bump `version:` in `claude-terminal/config.yaml` and the label in `claude-terminal/build.yaml`.
 3. Commit, push to `main`, then **Update**/**Rebuild** the add-on in Home Assistant.
 
 The add-on builds on-device (no prebuilt image), so the rebuild picks up the new base + pinned Claude. `/data` (auth, config, packages) is preserved across rebuilds.
 
----
+## Community tools
 
-## What it does
-
-A browser-terminal Claude Code CLI for Home Assistant, opened from the sidebar
-(ingress only — no host port by default). It starts in `/config`, so Claude can
-read and edit your Home Assistant configuration in place: write automations and
-scripts, run `git`, and install packages that persist across restarts. The
-Claude binary is pinned and updated by rebuilding the add-on.
-
-## Pairs with the Home Assistant MCP server
-
-Treat this add-on as a **shell + config editor**, and pair it with the **Home
-Assistant MCP server** add-on for *operating* Home Assistant:
-
-- **Operate HA via the MCP** — call services, query state, manage
-  entities/areas/other add-ons, the host, and backups through an audited,
-  structured channel.
-- **Author config in this terminal** — edit the YAML under `/config`, run shell
-  tooling, and have Claude write changes directly into your configuration.
-
-By design this add-on carries only a **`homeassistant`**-level Supervisor token
-(not `manager`): `ha core check`/`restart`/`info` keep working, but shell-level
-control of other add-ons, the host, Docker, and backups is intentionally
-dropped — route those through the MCP. Power users who need shell `manager`
-access must run a local copy with `hassio_role: manager` (it's a fixed manifest
-field, not raisable from the HA UI). See the
-[add-on README](claude-terminal/README.md) for details.
-
-### Auto-wiring ha-mcp (one paste)
-
-You don't have to wire the MCP server by hand. Install the **Home Assistant MCP
-Server** ([`homeassistant-ai/ha-mcp`](https://github.com/homeassistant-ai/ha-mcp))
-add-on, open its **Log** tab, copy the server URL it prints
-(`http://<host>:9583/private_<secret>`), and paste it into this add-on's
-**`home_assistant_mcp_url`** option. On the next start the terminal opens already
-connected — Claude can call the `ha_*` tools with no `claude mcp add`.
-
-- The secret path *is* the credential; **no token** is required. ha-mcp's own
-  `manager` token (not this add-on's) does the work, so nothing about this add-on's
-  reduced privilege changes.
-- Leaving `home_assistant_mcp_url` **empty** disables auto-wiring entirely and
-  touches no Claude config — if you already wired ha-mcp yourself, it's left as-is.
-- If ha-mcp is reinstalled its secret path rotates; if the `ha_*` tools stop
-  working, re-copy the new URL from the log into the option.
-- With `dangerously_skip_permissions: true`, MCP tool calls aren't prompted on the
-  Claude side — for unattended use, consider ha-mcp's own `read_only_mode` or
-  `enable_tool_security_policies` as a server-side guard.
-
-## Fork Attribution
-
-Forked from [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) by Javier Santos, itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady. Maintained by [unsnow-iac](https://github.com/unsnow-iac).
-
-This fork exists to fix breakages that left the upstream add-on unusable (see the **unsnow fork** section near the top) and to keep it actively maintained.
-
-### What earlier forks added
-
-- **Image Paste Support**: Upload images via paste (Ctrl+V), drag-drop, or upload button for Claude analysis
-- **Persistent Package Management**: Install system and Python packages that survive reboots
-- **Auto-install Configuration**: Configure packages to auto-install on startup
-- **Improved Credential Handling**: Enhanced authentication persistence
-- **Additional Documentation**: Comprehensive guides for development and usage
-
-This project maintains the same MIT license as the original.
-
-## Installation
-
-To add this repository to your Home Assistant instance:
-
-1. Go to **Settings** → **Add-ons** → **Add-on Store**
-2. Click the three dots menu in the top right corner
-3. Select **Repositories**
-4. Add the URL: `https://github.com/unsnow-iac/claude-code-ha`
-5. Click **Add**
-
-## Add-ons
-
-### Claude Code for Home Assistant
-
-A web-based terminal interface with Claude Code CLI pre-installed and enhanced package management. This add-on provides a terminal environment directly in your Home Assistant dashboard, allowing you to use Claude's powerful AI capabilities for coding, automation, and configuration tasks.
-
-#### Core Features
-- Web terminal access through your Home Assistant UI
-- Pre-installed Claude Code CLI that launches automatically
-- Direct access to your Home Assistant config directory
-- No configuration needed (uses OAuth)
-- Access to Claude's complete capabilities including:
-  - Code generation and explanation
-  - Debugging assistance
-  - Home Assistant automation help
-  - Learning resources
-
-#### Enhanced Features
-- **Image Paste Support**: Paste (Ctrl+V), drag-drop, or upload images for Claude analysis
-  - Lightweight service (~10MB RAM, ARM-compatible)
-  - Supports JPEG, PNG, GIF, WebP, SVG (10MB limit)
-  - Persistent storage in `/data/images/`
-  - Perfect for OCR, image analysis, screenshot debugging
-- **Persistent Package Management**: Install packages that survive container restarts
-- **Auto-install Packages**: Configure APK and pip packages to auto-install on startup
-- **Python Virtual Environment**: Isolated Python environment for packages
-- **Simple Commands**: Use `persist-install` for easy package management
-- **Unrestricted Mode**: Option to run Claude with `--dangerously-skip-permissions` for full file access
-
-#### Configuration Options
-- `auto_launch_claude`: Auto-start Claude or show session picker (default: true)
-- `dangerously_skip_permissions`: Enable unrestricted file access (default: false)
-- `enable_home_assistant_mcp`: Auto-wire the ha-mcp server on boot (default: true)
-- `home_assistant_mcp_url`: ha-mcp server URL from its add-on log; empty = no-op
-  (see [Auto-wiring ha-mcp](#auto-wiring-ha-mcp-one-paste))
-- `persistent_apk_packages`: System packages to auto-install
-- `persistent_pip_packages`: Python packages to auto-install
-
-[Documentation](claude-terminal/DOCS.md)
-
-## Community Tools
-
-Tools built by the community to enhance Claude Code for Home Assistant:
-
-- **[ha-ws-client-go](https://github.com/schoolboyqueue/home-assistant-blueprints/tree/main/scripts/ha-ws-client-go)** by [@schoolboyqueue](https://github.com/schoolboyqueue) - Lightweight Go CLI for Home Assistant WebSocket API. Gives Claude direct access to entity states, service calls, automation traces, and real-time monitoring. Single binary, no dependencies.
+- **[ha-ws-client-go](https://github.com/schoolboyqueue/home-assistant-blueprints/tree/main/scripts/ha-ws-client-go)** by [@schoolboyqueue](https://github.com/schoolboyqueue) — a lightweight Go CLI for the Home Assistant WebSocket API: entity states, service calls, automation traces, and real-time monitoring. Single binary, no dependencies.
 
 ## Support
 
-If you have any questions or issues with this add-on, please create an issue in this repository.
-
-## Credits
-
-**Original Creator:** Tom Cassady ([@heytcass](https://github.com/heytcass)) - Created the initial Claude Terminal add-on
-**Earlier Fork:** Javier Santos ([@esjavadex](https://github.com/esjavadex)) - Added persistent package management and enhancements
-**Current Maintainer:** [unsnow-iac](https://github.com/unsnow-iac) - Alpine 3.21/statx fix, persist-install repair, public release
-
-This add-on was created and enhanced with the assistance of Claude Code itself! The development process, debugging, and documentation were all completed using Claude's AI capabilities.
+Questions or issues? Please open an issue in this repository. For more detail, see the [add-on documentation](claude-terminal/DOCS.md).
 
 ## License
 
-This repository is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE). Original Claude Terminal add-on by Tom Cassady ([@heytcass](https://github.com/heytcass)); persistent-package management and enhancements by Javier Santos ([@esjavadex](https://github.com/esjavadex)); this fork (Alpine 3.21/`statx` fix, `persist-install` repair, least-privilege + ha-mcp wiring, public release) by [unsnow-iac](https://github.com/unsnow-iac).
