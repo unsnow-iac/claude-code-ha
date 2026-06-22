@@ -1,11 +1,24 @@
 # Changelog
 
-## 3.0.1
+## 4.2.0
 
-### 🐛 Fix - `persistent_apk_packages` / `persistent_pip_packages` auto-install
-- Configuring `persistent_apk_packages` (e.g. `openssh-client`, `tmux`) aborted startup install with `jq: parse error: Invalid literal at line 2, column 0`.
-- Cause: `bashio::config` already expands a list option into newline-separated raw values; `run.sh` then piped that back through `jq -r '.[]'`, double-parsing non-JSON and failing.
-- Fix: consume the expanded lines directly (no second `jq`); add `null`/empty guards. Both apk and pip auto-install now work.
+First public release of the fork, now named **Claude Code for Home Assistant**.
+The fork's earlier fixes landed incrementally as unreleased 3.0.x development
+versions and are consolidated into this first tagged release.
+
+### 🔧 Fixes consolidated from the unreleased 3.0.x work
+- **Base image → Alpine 3.21 (musl 1.2.5)**: Alpine 3.19 (musl 1.2.4) lacks the `statx` symbol current Claude Code native builds require, so newer binaries crashed at launch with `Error relocating ...: statx: symbol not found`. 3.21 ships musl 1.2.5, which exports `statx`.
+- **`persist-install` rewritten**: `apk info -L` lists paths without a leading slash, so the old match never fired — the script reported success but copied nothing, and packages vanished on container recreation. It now normalises paths and resolves real shared-library deps via `ldd`.
+- **Removed the dead `persistent_claude` layer**: it targeted an obsolete `cli.js` path and fought the baked-binary model. The launcher is now force-linked to the baked binary on every boot, so a stray `claude update` self-heals on restart.
+- **`persistent_apk_packages` / `persistent_pip_packages` auto-install fix**: `bashio::config` already expands a list option into newline-separated values; `run.sh` piped that back through `jq -r '.[]'`, double-parsing non-JSON and aborting startup with `jq: parse error`. Now consumes the expanded lines directly with null/empty guards.
+
+### 📦 Public release
+- **Rebranded** to **Claude Code for Home Assistant** (add-on name, panel title, repository metadata). The internal slug (`claude_terminal_unsnow`) is unchanged, so existing installs update in place — no reinstall needed.
+- **Restored a proper MIT `LICENSE`** crediting the full fork lineage (the inherited file still carried an unfilled `[Your Name]` placeholder).
+- **Fixed install pointers**: `repository.yaml` and the README/DOCS install URLs now point at `unsnow-iac/claude-code-ha`.
+- **Fixed stale dev docs**: the `nix develop` `build-addon` alias and the `DEVELOPMENT.md` build commands now use the Alpine 3.21 base (were 3.19).
+- **Removed docs for the deleted persistent-Claude options** from `DOCS.md` (the example config no longer references removed schema keys).
+- **Added a community / non-affiliation disclaimer** across the docs.
 
 ## 2.0.11
 

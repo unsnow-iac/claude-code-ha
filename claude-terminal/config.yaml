@@ -1,7 +1,7 @@
 ---
-name: "Claude Terminal (unsnow)"
-description: "Claude Code CLI terminal for Home Assistant. unsnow fork of ESJavadex/claude-code-ha: musl 1.2.5 base (fixes statx), working persist-install, baked ttyd/tmux, add-on-release update model."
-version: "3.0.1"
+name: "Claude Code for Home Assistant"
+description: "Community add-on (not affiliated with Anthropic or Home Assistant): the Claude Code CLI in a browser terminal. Maintained fork of ESJavadex/claude-code-ha on a musl 1.2.5 base (fixes statx), with working persist-install, baked ttyd/tmux, and release-based updates."
+version: "4.2.0"
 slug: "claude_terminal_unsnow"
 init: false
 
@@ -18,7 +18,7 @@ url: "https://github.com/unsnow-iac/claude-code-ha"
 ingress: true
 ingress_port: 7680
 panel_icon: mdi:code-braces-box
-panel_title: "Claude Terminal (unsnow)"
+panel_title: "Claude Code"
 panel_admin: true
 
 # Port configuration
