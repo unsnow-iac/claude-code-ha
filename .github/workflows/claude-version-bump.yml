@@ -1,0 +1,101 @@
+name: Check for Claude Code updates
+
+# Watches for new Claude Code CLI releases and, when one appears, opens a
+# ready-to-review pull request that performs the "golden rule" update for you:
+# bump CLAUDE_VERSION in the Dockerfile, bump the add-on version in config.yaml
+# and the build.yaml label, and add a CHANGELOG entry. You just review + merge,
+# then rebuild the add-on from the HA store. Nothing is changed without a PR.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays, 06:00 UTC
+  workflow_dispatch: {} # ...and a manual "Run workflow" button
+
+# Needed so the workflow can push a branch and open a PR. This also requires the
+# repo setting: Settings → Actions → General → Workflow permissions →
+# "Allow GitHub Actions to create and approve pull requests" (one-time checkbox).
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compare current vs latest Claude Code version
+        id: versions
+        run: |
+          current=$(grep -oP 'ARG CLAUDE_VERSION=\K.*' claude-terminal/Dockerfile)
+          # The native binary tracks the published npm version string, so the
+          # npm registry is a reliable, auth-free source for "what's latest".
+          latest=$(curl -fsSL https://registry.npmjs.org/@anthropic-ai/claude-code/latest | jq -r '.version')
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+            echo "::warning::Could not determine the latest version; skipping."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$current" = "$latest" ]; then
+            echo "Already on the latest version ($current)."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Update available: $current -> $latest"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply the bump
+        if: steps.versions.outputs.changed == 'true'
+        id: bump
+        run: |
+          current="${{ steps.versions.outputs.current }}"
+          latest="${{ steps.versions.outputs.latest }}"
+
+          # 1) Pin the new Claude version in the Dockerfile.
+          sed -i "s/ARG CLAUDE_VERSION=.*/ARG CLAUDE_VERSION=${latest}/" claude-terminal/Dockerfile
+
+          # 2) Bump the add-on patch version in config.yaml and the build.yaml label.
+          addon=$(grep -oP '^version:\s*"\K[^"]+' claude-terminal/config.yaml)
+          IFS=. read -r maj min pat <<< "$addon"
+          newaddon="${maj}.${min}.$((pat + 1))"
+          sed -i "s/^version:\s*\".*\"/version: \"${newaddon}\"/" claude-terminal/config.yaml
+          sed -i "s/org.opencontainers.image.version:\s*\".*\"/org.opencontainers.image.version: \"${newaddon}\"/" claude-terminal/build.yaml
+
+          # 3) Prepend a CHANGELOG entry (keep the existing "# Changelog" header).
+          tmp=$(mktemp)
+          {
+            echo "# Changelog"
+            echo
+            echo "## ${newaddon}"
+            echo
+            echo "### ⬆️ Claude Code ${current} → ${latest}"
+            echo "- Bumped the baked Claude Code CLI to \`${latest}\`. Delivered by rebuilding the"
+            echo "  add-on image — update/rebuild from the HA add-on store to apply."
+            echo
+            tail -n +3 claude-terminal/CHANGELOG.md
+          } > "$tmp"
+          mv "$tmp" claude-terminal/CHANGELOG.md
+
+          echo "newaddon=$newaddon" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request
+        if: steps.versions.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: claude-update/${{ steps.versions.outputs.latest }}
+          delete-branch: true
+          commit-message: "feat: update Claude Code ${{ steps.versions.outputs.current }} -> ${{ steps.versions.outputs.latest }}"
+          title: "feat: update Claude Code to ${{ steps.versions.outputs.latest }} (add-on ${{ steps.bump.outputs.newaddon }})"
+          body: |
+            Automated update opened by the **Check for Claude Code updates** workflow.
+
+            - **Claude Code:** `${{ steps.versions.outputs.current }}` → `${{ steps.versions.outputs.latest }}`
+            - **Add-on version:** bumped to `${{ steps.bump.outputs.newaddon }}` (config.yaml + build.yaml label)
+            - **CHANGELOG:** entry added
+
+            ### To ship it
+            1. Review the diff below.
+            2. Merge this PR.
+            3. **Update/Rebuild the add-on** from the Home Assistant add-on store — that's what actually delivers the new Claude binary (updates are not applied inside the running container).
+
+            > Note: PRs opened by the built-in workflow token don't automatically trigger the CI build. If you want CI to run on this PR, close and reopen it, or push an empty commit to the branch.
