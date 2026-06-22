@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.3.1
+
+### 🧹 Maintenance
+- **`multer` upgraded `1.4.5-lts.1` → `^2.0.0`** in the image-upload service. The
+  1.x line is end-of-life and flagged by `npm audit`; 2.x is the maintained line.
+  The APIs the service uses (`diskStorage`, `single`, `MulterError`) are unchanged.
+- **Fixed image provenance label**: `build.yaml`'s `org.opencontainers.image.source`
+  pointed at `anthropics/claude-code` (Anthropic's CLI repo) instead of this fork.
+  It now points at `unsnow-iac/claude-code-ha`.
+- **Removed the stale `DEVELOPMENT_STATUS.md`**: it described an in-progress
+  "90% complete — auth persistence issue" from early development that has long
+  since shipped. The current state lives in this changelog and `CLAUDE.md`.
+
 ## 4.3.0
 
 ### 🔒 Security — terminal is no longer exposed on the host network by default
