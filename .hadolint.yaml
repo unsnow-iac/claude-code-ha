@@ -1,0 +1,9 @@
+# hadolint config — rules this image intentionally does not follow.
+# Each is a deliberate choice, not an oversight; documented so the ignore list
+# stays honest. Remove an entry if you ever decide to address it.
+ignored:
+  - DL3006 # base image is the ${BUILD_FROM} ARG, pinned per-arch in build.yaml — can't tag it here
+  - DL3018 # apk packages are intentionally unpinned so they track the Alpine 3.21 repos
+  - DL3003 # a single `cd` inside a RUN (the image-service install); harmless
+  - DL4006 # pipefail SHELL: the base is busybox/ash and the pipes are simple `curl | bash` installers
+  - SC2086 # deliberate word-splitting of arch variables in the gh / ha download steps

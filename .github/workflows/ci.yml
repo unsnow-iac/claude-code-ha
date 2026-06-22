@@ -4,57 +4,68 @@ name: CI
 # kind of breakage this fork exists to prevent — a Dockerfile that no longer
 # builds, a malformed add-on manifest, or a shell script with a syntax error —
 # *before* it ships and bricks the add-on on someone's Home Assistant.
+#
+# The checks are split into independent jobs so they run in parallel and each
+# reports on its own — a failure in one doesn't hide the results of the others.
 on:
   pull_request:
   push:
     branches: [main]
 
-# Cancel an in-progress run if the same branch is pushed again.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint (Dockerfile / shell / add-on manifest)
+  hadolint:
+    name: Lint Dockerfile
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # Lints the Dockerfile. failure-threshold is set to `error` so the build
-      # only fails on genuine mistakes — not on style opinions like "pin every
-      # apk version", which this image intentionally does not do (it tracks the
-      # Alpine 3.21 repos). Tighten to `warning` later if you want it stricter.
-      - name: Hadolint (Dockerfile)
+      - uses: actions/checkout@v4
+      # Intentional rule exceptions live in .hadolint.yaml at the repo root.
+      - name: Hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: claude-terminal/Dockerfile
-          failure-threshold: error
+          config: .hadolint.yaml
 
-      # Lints all shell scripts. `-s bash` forces bash parsing so the
-      # `#!/usr/bin/with-contenv bashio` shebang on the add-on scripts doesn't
-      # trip "unsupported shebang". severity:error means only real bugs fail the
-      # build, not the many intentional unquoted expansions in these scripts.
-      - name: ShellCheck (scripts)
+  shellcheck:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # `-s bash` forces bash parsing so the `#!/usr/bin/with-contenv bashio`
+      # shebang on the add-on scripts doesn't trip "unsupported shebang".
+      # severity:error means only real bugs fail — not the many intentional
+      # unquoted expansions in these scripts.
+      - name: ShellCheck
         uses: ludeeus/action-shellcheck@master
         env:
           SHELLCHECK_OPTS: -s bash
         with:
           severity: error
 
-      # Validates the add-on manifest (config.yaml / build.yaml) against Home
-      # Assistant's schema — catches a bad version, missing field, or invalid
-      # option type that would otherwise only surface in the HA add-on store.
+  addon-lint:
+    name: Lint add-on manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Validates config.yaml / build.yaml against Home Assistant's schema —
+      # catches a bad version, missing field, or invalid option type that would
+      # otherwise only surface in the HA add-on store.
       - name: Home Assistant add-on linter
         uses: frenck/action-addon-linter@v2
         with:
           path: ./claude-terminal
 
-      # Belt-and-suspenders: the add-on version in config.yaml and the image
-      # label in build.yaml must stay in sync (a repo invariant). This is a
-      # cheap guard so a half-done version bump can't merge.
-      - name: Check version sync (config.yaml == build.yaml)
+  version-sync:
+    name: Check version sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The add-on version in config.yaml and the image label in build.yaml must
+      # stay in sync (a repo invariant). Cheap guard against a half-done bump.
+      - name: config.yaml version == build.yaml label
         run: |
           cfg=$(grep -oP '^version:\s*"\K[^"]+' claude-terminal/config.yaml)
           lbl=$(grep -oP 'org\.opencontainers\.image\.version:\s*"\K[^"]+' claude-terminal/build.yaml)
@@ -70,18 +81,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Build the image against the real Alpine 3.21 base, exactly as the HA
-      # builder would, to prove it still builds. We build amd64 only (native,
-      # fast, reliable); arm builds would require slow QEMU emulation and can be
-      # added later if arch-specific build breaks become a concern. Note: this
-      # catches *build* failures, not runtime ones like the musl `statx` crash,
-      # which only appear when the binary actually launches on a device.
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Build against the real Alpine 3.21 base, exactly as the HA builder would,
+      # to prove the image still builds. amd64 only (native, fast, reliable);
+      # arm builds would need slow QEMU emulation and can be added later. Note:
+      # this catches *build* failures, not runtime ones like the musl `statx`
+      # crash, which only appear when the binary launches on a device.
       - name: Build amd64 image
         uses: docker/build-push-action@v6
         with:
