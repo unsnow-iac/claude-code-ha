@@ -106,10 +106,36 @@ podman stop cc-test && podman rm cc-test
 hadolint ./claude-terminal/Dockerfile
 ```
 
+## CI & automation
+
+GitHub Actions in `.github/workflows/`:
+
+- **`ci.yml`** — runs on every PR and on pushes to `main`. Independent parallel
+  jobs: hadolint (Dockerfile; intentional rule exceptions in `.hadolint.yaml`),
+  shellcheck (scripts), the Home Assistant add-on manifest linter, a guard that
+  the `config.yaml` version equals the `build.yaml` label, and an **amd64 image
+  build** against the real Alpine 3.21 base. The build catches *build* breaks,
+  not runtime ones like the musl `statx` crash (that only shows on a device).
+- **`claude-version-bump.yml`** — weekly (and manual via "Run workflow").
+  Detects a newer Claude Code release via the npm registry and opens a PR that
+  bumps `CLAUDE_VERSION`, the add-on version, the `build.yaml` label, and the
+  changelog — the golden-rule update, ready to review and merge. Requires the
+  repo setting *Actions → General → "Allow GitHub Actions to create and approve
+  pull requests"* (already enabled).
+- **`claude.yml`** — the `@claude` responder for issues/PRs (unchanged).
+
 ## Conventions
 
-- **Every change bumps the version and adds a CHANGELOG entry** — together, in
-  the same commit. The add-on store keys updates off `version:`.
+- **Every *release* bumps the version and adds a CHANGELOG entry** — not every
+  PR. A version marks a release users install, not an individual change, so
+  batch related PRs under one bump rather than minting a new version per PR.
+  Accumulate notes under a `## Unreleased` heading in `CHANGELOG.md`, then assign
+  the version + date in the commit that cuts the release (bump `config.yaml` and
+  the `build.yaml` label together — CI enforces they match). The add-on store
+  keys updates off `version:` and only ever offers the *latest*, so consecutive
+  micro-bumps just add changelog noise. **Never lower the version on `main`** —
+  the store detects updates by the number increasing, so a downgrade can make an
+  update invisible.
 - Add-on shell scripts use `#!/usr/bin/with-contenv bashio` and
   `bashio::log.*` for output; `persist-install` is plain `#!/bin/bash`.
 - YAML: 2-space indent. Shell: 4-space indent.
