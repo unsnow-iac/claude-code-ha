@@ -23,7 +23,8 @@ and persisting custom packages across restarts.
    - Add: `https://github.com/unsnow-iac/claude-code-ha`
 2. Install the Claude Code for Home Assistant add-on
 3. Start the add-on
-4. Click "OPEN WEB UI" to access the terminal
+4. Open it from the **Claude Code** sidebar panel (ingress) — there is no
+   separate host-port web UI by default
 5. On first use, follow the OAuth prompts to log in to your Anthropic account
 
 ## Configuration
@@ -45,6 +46,15 @@ The add-on offers several configuration options:
 ### Persistent Packages
 - Configure APK and pip packages to auto-install on startup
 - Packages are stored in `/data/packages` and survive restarts
+
+### Home Assistant operations (use the MCP server)
+This add-on is a shell + config editor. It carries only a `homeassistant`-level
+Supervisor token, so `ha core check`/`restart`/`info` work, but managing other
+add-ons, the host, Docker, and backups from the shell is intentionally not
+permitted. To *operate* Home Assistant from Claude, pair this with the **Home
+Assistant MCP server** add-on. Power users who need shell-level `manager` access
+must run a local copy with `hassio_role: manager` (a fixed manifest field, not
+raisable from the HA UI).
 
 **Example Configuration**:
 ```yaml

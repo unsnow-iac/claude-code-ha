@@ -400,8 +400,10 @@ start_web_terminal() {
     auto_launch_claude=$(bashio::config 'auto_launch_claude' 'true')
     bashio::log.info "Auto-launch Claude: ${auto_launch_claude}"
 
-    # Start the image upload service first
-    start_image_service
+    # Start the image upload service first. It is non-critical: under `set -e`
+    # a non-zero return here would abort the whole add-on before ttyd starts, so
+    # guard it and continue with a terminal-only session if it fails.
+    start_image_service || bashio::log.warning "Image upload service failed to start; continuing with terminal only"
 
     # Run ttyd with keepalive and reconnect configuration
     # --ping-interval 30: WebSocket ping every 30s (default 300s) to prevent idle disconnects

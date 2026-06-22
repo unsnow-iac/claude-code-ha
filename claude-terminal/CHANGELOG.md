@@ -1,5 +1,45 @@
 # Changelog
 
+## 4.4.0
+
+A hygiene release batching least-privilege, supply-chain, robustness, and docs
+fixes.
+
+### 🔒 Least privilege — Supervisor token lowered `manager` → `homeassistant`
+- The add-on no longer requests the broad `manager` Supervisor role. It now
+  carries only `hassio_role: homeassistant`, which keeps `ha core
+  check`/`restart`/`info` working while **dropping** shell-level control of other
+  add-ons, the host, Docker, and backups (the `/addons/*`, `/host/.+`,
+  `/docker/.+`, `/backups.*` surface).
+- **What to do instead:** operate Home Assistant through the **Home Assistant MCP
+  server** add-on — an audited, structured channel for those operations.
+- **Heads-up:** `hassio_role` is a fixed manifest field that **cannot** be raised
+  from the HA UI. If you need shell-level `manager` access, run a local/forked
+  copy with `hassio_role: manager`. See the README.
+
+### 🔗 Supply chain — `ha` and `gh` CLIs pinned + checksum-verified
+- The Dockerfile previously fetched `ha` and `gh` from `releases/latest` via
+  unauthenticated GitHub API calls — unpinned and unverified. Both are now pinned
+  (`HA_CLI_VERSION=5.2.0`, `GH_VERSION=2.95.0`) and **sha256-verified** at build:
+  `gh` against its published `*_checksums.txt`, `ha` against hardcoded per-arch
+  hashes (the HA CLI ships no checksums file). Builds are now reproducible and
+  the unauthenticated API lookups are gone.
+
+### 🛡️ Robustness — a failed image service no longer kills the terminal
+- `run.sh` runs under `set -e`; a non-zero return from the (non-critical) image
+  upload service would abort the whole add-on before `ttyd` started. The call is
+  now guarded, so the terminal still comes up (image upload disabled) if that
+  service fails.
+
+### 📝 Docs & positioning refresh
+- Rewrote the store and repository READMEs and `DOCS.md`: removed stale claims
+  (`@latest`, `armv7`, host port `7681`, the `/addons` mount, the old
+  `claude-auth`/`claude-logout` commands, and the "Open Web UI" host port).
+- Added a **Home Assistant MCP server** companion section documenting the
+  shell-vs-operate division of labour and the new token scope.
+- Removed the broken third-party "Recommended Plugins" instructions
+  (`npx claude-plugins install …`); the ha-mcp pairing is the recommended path.
+
 ## 4.3.3
 
 ### 🗑️ Dropped the deprecated `armv7` (32-bit ARM) architecture

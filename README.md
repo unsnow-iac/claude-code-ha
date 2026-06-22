@@ -29,23 +29,32 @@ The add-on builds on-device (no prebuilt image), so the rebuild picks up the new
 
 ---
 
-## Recommended Plugins
+## What it does
 
-For an enhanced Claude Code experience with Home Assistant, we recommend installing the **Claude Home Assistant Plugins**:
+A browser-terminal Claude Code CLI for Home Assistant, opened from the sidebar
+(ingress only — no host port by default). It starts in `/config`, so Claude can
+read and edit your Home Assistant configuration in place: write automations and
+scripts, run `git`, and install packages that persist across restarts. The
+Claude binary is pinned and updated by rebuilding the add-on.
 
-**[https://github.com/ESJavadex/claude-homeassistant-plugins](https://github.com/ESJavadex/claude-homeassistant-plugins)**
+## Pairs with the Home Assistant MCP server
 
-These plugins provide Claude Code with specialized tools and context for Home Assistant development, including entity management, automation helpers, and more.
+Treat this add-on as a **shell + config editor**, and pair it with the **Home
+Assistant MCP server** add-on for *operating* Home Assistant:
 
-### Installation
+- **Operate HA via the MCP** — call services, query state, manage
+  entities/areas/other add-ons, the host, and backups through an audited,
+  structured channel.
+- **Author config in this terminal** — edit the YAML under `/config`, run shell
+  tooling, and have Claude write changes directly into your configuration.
 
-Run this command inside the terminal:
-
-```bash
-npx claude-plugins install @ESJavadex/claude-homeassistant-plugins/homeassistant-config
-```
-
-This creates a `CLAUDE.md` file in your Home Assistant config directory with context and instructions tailored for Home Assistant development.
+By design this add-on carries only a **`homeassistant`**-level Supervisor token
+(not `manager`): `ha core check`/`restart`/`info` keep working, but shell-level
+control of other add-ons, the host, Docker, and backups is intentionally
+dropped — route those through the MCP. Power users who need shell `manager`
+access must run a local copy with `hassio_role: manager` (it's a fixed manifest
+field, not raisable from the HA UI). See the
+[add-on README](claude-terminal/README.md) for details.
 
 ## Fork Attribution
 

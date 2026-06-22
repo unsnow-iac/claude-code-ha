@@ -1,7 +1,7 @@
 ---
 name: "Claude Code for Home Assistant"
 description: "Community add-on (not affiliated with Anthropic or Home Assistant): the Claude Code CLI in a browser terminal. Maintained fork of ESJavadex/claude-code-ha on a musl 1.2.5 base (fixes statx), with working persist-install, baked ttyd/tmux, and release-based updates."
-version: "4.3.3"
+version: "4.4.0"
 slug: "claude_terminal_unsnow"
 init: false
 
@@ -56,8 +56,19 @@ map:
   - config:rw    # Access to Home Assistant configuration files
 
 # API access for Home Assistant integration
+# hassio_role is intentionally `homeassistant`, not `manager`: this add-on is a
+# full shell with arbitrary apk/pip installs, so it should carry the *smallest*
+# Supervisor token that still lets `ha core check/restart/info` work. The
+# `homeassistant` role grants exactly the `^(?:|/.+/info|/core/.+|/homeassistant/.+)$`
+# surface; `manager` additionally exposes /addons/*, /backups.*, /host/.+ and
+# /docker/.+ — broad add-on/host/backup control we deliberately drop. HA
+# *operations* (managing other add-ons, the host, backups) should go through the
+# audited Home Assistant MCP server instead. NOTE: hassio_role is a fixed
+# manifest field users cannot raise from the HA UI; a power user who needs
+# shell-level manager access must run a local/forked copy with
+# `hassio_role: manager`. See README.md.
 hassio_api: true
-hassio_role: manager
+hassio_role: homeassistant
 homeassistant_api: true
 auth_api: true
 

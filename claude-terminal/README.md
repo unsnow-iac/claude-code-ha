@@ -12,24 +12,32 @@ A web-based terminal with the Claude Code CLI and persistent package management 
 
 ## What is this add-on?
 
-This add-on provides a web-based terminal interface with Claude Code CLI pre-installed plus persistent package management, allowing you to use Claude's powerful AI capabilities directly from your Home Assistant dashboard. It gives you direct access to Anthropic's Claude AI assistant through a terminal, ideal for:
+This add-on gives you Anthropic's **Claude Code CLI** in a browser terminal,
+opened straight from your Home Assistant sidebar. The terminal starts in your
+`/config` directory, so Claude can read and edit your Home Assistant
+configuration in place — ideal for:
 
-- Writing and editing code
-- Debugging problems
+- Writing and editing automations, scripts, and YAML config
+- Debugging problems in your setup
 - Learning new programming concepts
-- Creating Home Assistant scripts and automations
+- General coding and shell work, with persistent package installs
+
+Access is through the **authenticated Home Assistant ingress panel** — there is
+no host port and no separate web UI to expose. The Claude binary is **pinned**
+to a known-good version and updated by rebuilding the add-on, not from inside the
+container (see *Updating Claude Code* in the [repository README](../README.md)).
 
 ## Features
 
 ### Core Features
-- **Web Terminal Interface**: Access Claude through a browser-based terminal using ttyd
+- **Web Terminal Interface**: Access Claude through a browser-based terminal using ttyd, served only over the Home Assistant ingress panel (no host port by default)
 - **Auto-Launch**: Claude starts automatically when you open the terminal
-- **Latest Claude Code CLI**: Pre-installed with Anthropic's official CLI (@latest)
+- **Pinned Claude Code CLI**: Anthropic's official CLI, baked in at a known-good version for reproducible builds (updated by rebuilding the add-on)
 - **No Configuration Needed**: Uses OAuth authentication for easy setup
 - **Direct Config Access**: Terminal starts in your `/config` directory for immediate access to all Home Assistant files
 - **Home Assistant Integration**: Access directly from your dashboard
 - **Panel Icon**: Quick access from the sidebar with the code-braces-box icon
-- **Multi-Architecture Support**: Works on amd64, aarch64, and armv7 platforms
+- **Multi-Architecture Support**: Works on amd64 and aarch64 platforms
 - **Secure Credential Management**: Persistent authentication with safe credential storage
 - **Automatic Recovery**: Built-in fallbacks and error handling for reliable operation
 
@@ -53,13 +61,33 @@ claude -i
 
 # Get help with available commands
 claude --help
-
-# Debug authentication if needed
-claude-auth debug
-
-# Log out and re-authenticate
-claude-logout
 ```
+
+## Using it with the Home Assistant MCP server (recommended)
+
+This add-on is a **shell + config editor**, not a Home Assistant control plane.
+The recommended companion is the **Home Assistant MCP server** add-on, which
+gives Claude an audited, structured channel to *operate* Home Assistant.
+Division of labour:
+
+- **Operate Home Assistant via the MCP** — call services, query state, manage
+  entities/areas, manage other add-ons, the host, and backups.
+- **Use this terminal for shell + config authoring** — read and edit the files
+  under `/config`, run `git`, install packages, and have Claude write
+  automations and scripts directly into your configuration.
+
+### Supervisor token scope (least privilege)
+
+This add-on intentionally carries only a **`homeassistant`**-level Supervisor
+token, **not `manager`**. That keeps `ha core check` / `restart` / `info`
+working while deliberately *dropping* shell-level control of other add-ons, the
+host, Docker, and backups. Route those **HA operations through the MCP server**
+instead.
+
+If you specifically need shell-level `manager` access (e.g. scripting other
+add-ons from the terminal), the Supervisor role is a fixed manifest field that
+**cannot** be raised from the HA UI — run a local/forked copy of this add-on
+with `hassio_role: manager` in `config.yaml` and accept the broader exposure.
 
 ## Installation
 
@@ -69,25 +97,30 @@ claude-logout
    - Add: `https://github.com/unsnow-iac/claude-code-ha`
 2. Install the Claude Code for Home Assistant add-on
 3. Start the add-on
-4. Click "OPEN WEB UI" or the sidebar icon to access
+4. Open it from the **Claude Code** sidebar panel (ingress) — there is no
+   separate "Open Web UI" host port by default
 5. On first use, follow the OAuth prompts to log in to your Anthropic account
 
 ## Configuration
 
 The add-on works out of the box, but also supports a few optional advanced settings:
 
-- **Port**: Web interface runs on port 7681
+- **Access**: Served over the authenticated Home Assistant ingress panel; the
+  direct `7680`/`7681` host ports are unset by default and should stay that way
+  (ttyd runs unauthenticated, so a host-mapped port is an open root shell on
+  your LAN)
 - **Authentication**: OAuth with Anthropic (credentials stored securely in `/config/claude-config/`)
 - **Terminal**: Full bash environment with Claude Code CLI pre-installed
-- **Volumes**: Access to both `/config` (Home Assistant) and `/addons` (for development)
+- **Volumes**: Read/write access to `/config` (Home Assistant configuration)
 
 ## Troubleshooting
 
 ### Authentication Issues
-If you have authentication problems:
+Credentials live in `/config/claude-config/` and persist across restarts and
+rebuilds. If you have authentication problems, re-run the OAuth flow from inside
+the terminal:
 ```bash
-claude-auth debug    # Show credential status
-claude-logout        # Clear credentials and re-authenticate
+claude        # prompts you to log in again if no valid credentials are found
 ```
 
 ### Container Issues

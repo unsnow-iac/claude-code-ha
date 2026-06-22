@@ -37,45 +37,48 @@ RUN (curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_VERSION}" \
     && ln -sf /root/.local/bin/claude /usr/local/bin/claude) \
     || npm install -g @anthropic-ai/claude-code@"${CLAUDE_VERSION}"
 
-# Install Home Assistant CLI (ha command)
-# Download appropriate binary based on build architecture
-# Automatically fetches the latest version from GitHub
+# Install Home Assistant CLI (ha command), pinned + checksum-verified.
+# Pinned (not `releases/latest`) for reproducible, offline-auditable builds and
+# to drop the unauthenticated build-time GitHub API call. The HA CLI publishes
+# no checksums file, so the expected sha256 of each release binary is hardcoded
+# here — recompute both when bumping HA_CLI_VERSION:
+#   curl -fsSL .../ha_<arch> | sha256sum
+# Only the architectures this add-on actually builds (amd64, aarch64) are
+# handled; see build.yaml / config.yaml `arch`.
 ARG TARGETARCH
+ARG HA_CLI_VERSION=5.2.0
 RUN case "${TARGETARCH}" in \
-        amd64)   HA_ARCH="amd64" ;; \
-        arm64)   HA_ARCH="aarch64" ;; \
-        arm/v7)  HA_ARCH="armv7" ;; \
-        arm/v6)  HA_ARCH="armhf" ;; \
-        386)     HA_ARCH="i386" ;; \
-        *)       echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+        amd64)  HA_ARCH="amd64";   HA_SHA256="701be67aee9f1e092254097a40d006b450d1578641a262258b182237987e7479" ;; \
+        arm64)  HA_ARCH="aarch64"; HA_SHA256="af8c03ccddb65d223d7b7dab1570197b8a2ff8fc7139c1db054d08a91a4f8073" ;; \
+        *)      echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
-    echo "Fetching latest Home Assistant CLI version..." && \
-    HA_VERSION=$(curl -fsSL https://api.github.com/repos/home-assistant/cli/releases/latest | jq -r '.tag_name') && \
-    echo "Installing Home Assistant CLI ${HA_VERSION} for ${HA_ARCH}..." && \
+    echo "Installing Home Assistant CLI ${HA_CLI_VERSION} for ${HA_ARCH}..." && \
     curl -fsSL -o /usr/bin/ha \
-        "https://github.com/home-assistant/cli/releases/download/${HA_VERSION}/ha_${HA_ARCH}" && \
+        "https://github.com/home-assistant/cli/releases/download/${HA_CLI_VERSION}/ha_${HA_ARCH}" && \
+    echo "${HA_SHA256}  /usr/bin/ha" | sha256sum -c - && \
     chmod +x /usr/bin/ha && \
-    echo "Home Assistant CLI ${HA_VERSION} installed successfully"
+    echo "Home Assistant CLI ${HA_CLI_VERSION} installed and verified"
 
-# Install GitHub CLI (gh command)
-# Download appropriate binary based on build architecture
+# Install GitHub CLI (gh command), pinned + checksum-verified against the
+# release's published gh_<ver>_checksums.txt (bump GH_VERSION to update).
+ARG GH_VERSION=2.95.0
 RUN case "${TARGETARCH}" in \
-        amd64)   GH_ARCH="amd64" ;; \
-        arm64)   GH_ARCH="arm64" ;; \
-        arm/v7)  GH_ARCH="armv7" ;; \
-        386)     GH_ARCH="386" ;; \
-        *)       echo "Unsupported architecture for gh: ${TARGETARCH}" && exit 1 ;; \
+        amd64)  GH_ARCH="amd64" ;; \
+        arm64)  GH_ARCH="arm64" ;; \
+        *)      echo "Unsupported architecture for gh: ${TARGETARCH}" && exit 1 ;; \
     esac && \
-    echo "Fetching latest GitHub CLI version..." && \
-    GH_VERSION=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest | jq -r '.tag_name' | sed 's/^v//') && \
+    GH_TARBALL="gh_${GH_VERSION}_linux_${GH_ARCH}.tar.gz" && \
     echo "Installing GitHub CLI v${GH_VERSION} for ${GH_ARCH}..." && \
-    curl -fsSL -o /tmp/gh.tar.gz \
-        "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${GH_ARCH}.tar.gz" && \
-    tar -xzf /tmp/gh.tar.gz -C /tmp && \
+    curl -fsSL -o "/tmp/${GH_TARBALL}" \
+        "https://github.com/cli/cli/releases/download/v${GH_VERSION}/${GH_TARBALL}" && \
+    curl -fsSL -o /tmp/gh_checksums.txt \
+        "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_checksums.txt" && \
+    (cd /tmp && grep " ${GH_TARBALL}$" gh_checksums.txt | sha256sum -c -) && \
+    tar -xzf "/tmp/${GH_TARBALL}" -C /tmp && \
     mv /tmp/gh_${GH_VERSION}_linux_${GH_ARCH}/bin/gh /usr/bin/gh && \
     chmod +x /usr/bin/gh && \
     rm -rf /tmp/gh* && \
-    echo "GitHub CLI v${GH_VERSION} installed successfully"
+    echo "GitHub CLI v${GH_VERSION} installed and verified"
 
 # Create directory for Claude configuration and set working directory
 RUN mkdir -p /config/claude-config
