@@ -1,7 +1,7 @@
 ---
 name: "Claude Code for Home Assistant"
 description: "Community add-on (not affiliated with Anthropic or Home Assistant): the Claude Code CLI in a browser terminal. Maintained fork of ESJavadex/claude-code-ha on a musl 1.2.5 base (fixes statx), with working persist-install, baked ttyd/tmux, and release-based updates."
-version: "4.4.0"
+version: "4.5.0"
 slug: "claude_terminal_unsnow"
 init: false
 
