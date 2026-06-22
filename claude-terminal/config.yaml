@@ -1,7 +1,7 @@
 ---
 name: "Claude Code for Home Assistant"
 description: "Community add-on (not affiliated with Anthropic or Home Assistant): the Claude Code CLI in a browser terminal. Maintained fork of ESJavadex/claude-code-ha on a musl 1.2.5 base (fixes statx), with working persist-install, baked ttyd/tmux, and release-based updates."
-version: "4.2.0"
+version: "4.3.0"
 slug: "claude_terminal_unsnow"
 init: false
 
@@ -22,12 +22,18 @@ panel_title: "Claude Code"
 panel_admin: true
 
 # Port configuration
+# Default to NOT exposing these on the host network: the add-on is meant to be
+# used through the authenticated Home Assistant ingress panel above. ttyd runs
+# `--writable` with no credentials, so a host-mapped port would be an
+# unauthenticated root shell reachable by anyone on the LAN. Both default to
+# `null` (not exposed); an advanced user can still assign a host port from the
+# add-on's Network panel if they accept that risk.
 ports:
-  7680/tcp: 7680
-  7681/tcp: 7681
+  7680/tcp: null
+  7681/tcp: null
 ports_description:
-  7680/tcp: "Image upload service and web interface"
-  7681/tcp: "ttyd terminal (embedded in web interface)"
+  7680/tcp: "Optional direct web interface — UNAUTHENTICATED. Leave unset; use the ingress panel."
+  7681/tcp: "Optional direct ttyd terminal — UNAUTHENTICATED. Leave unset; use the ingress panel."
 
 # Add-on configuration options
 # (use_persistent_claude / auto_update_claude_on_start removed: that layer
@@ -59,6 +65,3 @@ auth_api: true
 
 # Service startup configuration
 startup: services
-
-# Web UI access URL
-webui: http://[HOST]:[PORT:7680]/

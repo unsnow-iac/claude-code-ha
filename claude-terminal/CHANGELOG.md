@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.3.0
+
+### 🔒 Security — terminal is no longer exposed on the host network by default
+- **Host ports default to `null` (not exposed).** Previously `config.yaml` mapped
+  ports `7680`/`7681` straight to the host, and `ttyd` runs `--writable` with no
+  credentials — so anyone on the LAN could open `http://<ha-host>:7681` and get an
+  **unauthenticated root shell** with Claude, bypassing the Home Assistant login
+  entirely (and unrestricted if `dangerously_skip_permissions` was on).
+- **Use the ingress panel instead.** The add-on is meant to be used through the
+  authenticated Home Assistant ingress panel, which is unaffected by this change.
+- **Power users can still opt in:** assign a host port from the add-on's *Network*
+  panel if you understand and accept the risk. The `webui` button (which required
+  a host-mapped port) was removed in favour of the ingress panel.
+
 ## 4.2.0
 
 First public release of the fork, now named **Claude Code for Home Assistant**.
