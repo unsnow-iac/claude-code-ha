@@ -51,7 +51,7 @@ This creates a `CLAUDE.md` file in your Home Assistant config directory with con
 
 Forked from [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) by Javier Santos, itself a fork of [heytcass/home-assistant-addons](https://github.com/heytcass/home-assistant-addons) by Tom Cassady. Maintained by [unsnow-iac](https://github.com/unsnow-iac).
 
-This fork exists to fix breakages that left the upstream add-on unusable (see the [unsnow fork](#️-unsnow-fork) section above) and to keep it actively maintained.
+This fork exists to fix breakages that left the upstream add-on unusable (see the **unsnow fork** section near the top) and to keep it actively maintained.
 
 ### What earlier forks added
 
