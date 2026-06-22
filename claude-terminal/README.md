@@ -103,20 +103,23 @@ with `hassio_role: manager` in `config.yaml` and accept the broader exposure.
 
 ## Configuration
 
-The add-on works out of the box, but also supports a few optional advanced settings:
+The add-on works out of the box. Configurable options — auto-launch,
+`dangerously_skip_permissions`, ha-mcp auto-wiring, the onboarding hint, and
+persistent-package auto-install — are documented in the
+[options table](../README.md#configuration) in the repository README. Other facts:
 
 - **Access**: Served over the authenticated Home Assistant ingress panel; the
   direct `7680`/`7681` host ports are unset by default and should stay that way
   (ttyd runs unauthenticated, so a host-mapped port is an open root shell on
   your LAN)
-- **Authentication**: OAuth with Anthropic (credentials stored securely in `/config/claude-config/`)
+- **Authentication**: OAuth with Anthropic (credentials stored under `/data/.config/claude`, which persists across restarts and rebuilds)
 - **Terminal**: Full bash environment with Claude Code CLI pre-installed
 - **Volumes**: Read/write access to `/config` (Home Assistant configuration)
 
 ## Troubleshooting
 
 ### Authentication Issues
-Credentials live in `/config/claude-config/` and persist across restarts and
+Credentials live under `/data/.config/claude` and persist across restarts and
 rebuilds. If you have authentication problems, re-run the OAuth flow from inside
 the terminal:
 ```bash
@@ -128,36 +131,29 @@ claude        # prompts you to log in again if no valid credentials are found
 - Check add-on logs if the terminal doesn't load
 - Restart the add-on if Claude commands aren't recognized
 
-### Development
-For local development and testing:
-```bash
-# Enter development environment
-nix develop
-
-# Build and test locally
-build-addon
-run-addon
-
-# Lint and validate
-lint-dockerfile
-test-endpoint
-```
+For local development and testing, see [Development Environment](#development-environment) below.
 
 ## Architecture
 
 - **Base Image**: Home Assistant Alpine Linux base (3.21; musl 1.2.5, which exports the `statx` symbol newer Claude builds require)
 - **Container Runtime**: Compatible with Docker/Podman
-- **Web Terminal**: ttyd for browser-based access
-- **Process Management**: s6-overlay for reliable service startup
+- **Web Terminal**: ttyd for browser-based access (with `tmux`)
+- **Startup**: `init: false` — `run.sh` is the entrypoint; it sets up `/data`, launches the image-upload service, then `exec`s ttyd
 - **Networking**: Ingress support with Home Assistant reverse proxy
 
 ## Security
 
-Version 1.0.2 includes important security improvements:
-- ✅ **Secure Credential Management**: Limited filesystem access to safe directories only
-- ✅ **Safe Cleanup Operations**: No more dangerous system-wide file deletions
-- ✅ **Proper Permission Handling**: Consistent file permissions (600) for credentials
-- ✅ **Input Validation**: Enhanced error checking and bounds validation
+- **Least-privilege Supervisor token** — the add-on requests only the
+  `homeassistant` role, not `manager`, so the shell cannot control other add-ons,
+  the host, Docker, or backups; route those through the [MCP server](#using-it-with-the-home-assistant-mcp-server-recommended).
+- **Ingress-only by default** — no host port; access is through the authenticated
+  Home Assistant panel.
+- **Credentials** stored with `600` permissions under `/data` and never in a
+  git-trackable location.
+- **Pinned + checksum-verified** `ha`/`gh` CLIs; auto-update disabled in favour of
+  rebuild-based updates.
+
+See the [CHANGELOG](CHANGELOG.md) (notably 4.4.0) for the full security history.
 
 ## Development Environment
 
@@ -182,23 +178,9 @@ For detailed usage instructions, see the [documentation](DOCS.md).
 
 ## Version History
 
-For current releases see [CHANGELOG.md](CHANGELOG.md). Older highlights:
-
-### v1.0.2 - Security & Bug Fix Release
-- 🔒 **CRITICAL**: Fixed dangerous filesystem operations
-- 🐛 Added missing armv7 architecture support
-- 🔧 Pinned NPM packages and improved error handling
-- 🛠️ Enhanced development environment with Podman support
-
-### v1.0.1
-- Improved credential management
-- Enhanced startup reliability
-
-### v1.0.0
-- Initial stable release
-- Web terminal interface with ttyd
-- Pre-installed Claude Code CLI
-- OAuth authentication support
+See [CHANGELOG.md](CHANGELOG.md) for all releases. The fork's headline fixes
+(Alpine 3.21/`statx`, `persist-install` repair, least-privilege token, ha-mcp
+wiring) are summarised in the [repository README](../README.md#about-this-fork).
 
 ## Useful Links
 
@@ -211,9 +193,7 @@ For current releases see [CHANGELOG.md](CHANGELOG.md). Older highlights:
 
 **Original Creator:** Tom Cassady ([@heytcass](https://github.com/heytcass)) - Created the initial Claude Terminal add-on
 **Earlier Fork:** Javier Santos ([@esjavadex](https://github.com/esjavadex)) - Added persistent package management and enhancements
-**Current Maintainer:** [unsnow-iac](https://github.com/unsnow-iac) - Alpine 3.21/statx fix, persist-install repair, public release
-
-This add-on was created and enhanced with the assistance of Claude Code itself! The development process, debugging, and documentation were all completed using Claude's AI capabilities - a perfect demonstration of what this add-on can help you accomplish.
+**Current Maintainer:** [unsnow-iac](https://github.com/unsnow-iac) - Alpine 3.21/statx fix, persist-install repair, least-privilege token, ha-mcp wiring, public release
 
 ## License
 
