@@ -1,6 +1,8 @@
 MIT License
 
-Copyright (c) 2025 [Your Name]
+Copyright (c) 2026 unsnow-iac
+Copyright (c) 2025 Javier Santos (ESJavadex)
+Copyright (c) Tom Cassady (heytcass)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,5 +22,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Note: This license applies only to the Home Assistant add-on code. 
-Claude Code itself is subject to Anthropic's Commercial Terms of Service.
+Note: This MIT license applies only to the Home Assistant add-on code in this
+repository. Claude Code itself is a product of Anthropic and is subject to
+Anthropic's own terms; "Claude" and "Claude Code" are trademarks of Anthropic,
+PBC. "Home Assistant" is a trademark of the Open Home Foundation. This is a
+community add-on, not affiliated with or endorsed by either.
