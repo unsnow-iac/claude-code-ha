@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 4.5.0 — 2026-06-22
+
+Tighter Home Assistant MCP coupling: the add-on now connects Claude Code to the
+ha-mcp server for you and orients Claude to the HA environment, plus a README
+refresh. All additive and safe for existing setups (empty `home_assistant_mcp_url`
+stays a no-op; the onboarding hint never touches `/config`).
 
 ### 🔗 Home Assistant MCP (ha-mcp) auto-wiring
 - The add-on can now register the [`homeassistant-ai/ha-mcp`](https://github.com/homeassistant-ai/ha-mcp)
