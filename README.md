@@ -58,8 +58,8 @@ You don't have to wire the MCP server by hand. Install the **Home Assistant MCP 
 
 - The secret path *is* the credential; **no token** is required. ha-mcp's own `manager` token (not this add-on's) does the work, so nothing about this add-on's reduced privilege changes.
 - Leaving `home_assistant_mcp_url` **empty** disables auto-wiring and touches no Claude config — if you already wired ha-mcp yourself, it's left as-is.
-- If ha-mcp is reinstalled its secret path rotates; if the `ha_*` tools stop working, re-copy the new URL from its log into the option.
-- With `dangerously_skip_permissions: true`, MCP tool calls aren't prompted on the Claude side — for unattended use, consider ha-mcp's own `read_only_mode` or `enable_tool_security_policies` as a server-side guard.
+- If ha-mcp is reinstalled its secret path rotates; if the `ha_*` tools stop working, re-copy the new URL from its log into the option. To paste only once, **pin** the path with ha-mcp's advanced **`secret_path`** option (persisted to its own `/data/secret_path.txt`) so the URL stays stable across reinstalls.
+- With `dangerously_skip_permissions: true`, MCP tool calls aren't prompted on the Claude side — for unattended use, consider ha-mcp's own `read_only_mode` or `enable_tool_security_policies` as a server-side guard. The latter adds a **Tool Security Policies** tab in ha-mcp's web UI (its **Open Web UI**) where you approve held tool calls and set per-tool rules.
 
 ## Features
 
