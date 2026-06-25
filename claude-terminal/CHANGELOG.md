@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### 🔗 Home Assistant MCP (ha-mcp) — verified compatible with v7.x
+- Audited the ha-mcp auto-wiring against ha-mcp **v7.x** (latest v7.9.0): the
+  coupling is unchanged and needs no code change. Port **9583**, streamable-HTTP
+  transport, the secret-path-as-credential URL (`http://<host>:9583/private_<secret>`),
+  and the `ha_*` tools are all stable; `claude mcp add --transport http` remains the
+  correct, direct connection (no `mcp-proxy` needed — that's a Claude *Desktop*
+  workaround, not Claude Code).
+- Docs: the auto-wiring section now notes ha-mcp's advanced **`secret_path`**
+  override (pin the path so the URL survives reinstalls without re-pasting) and its
+  **Tool Security Policies** web UI (per-tool approval gating) as a server-side guard
+  for unattended use.
+
 ## 4.5.0 — 2026-06-22
 
 Tighter Home Assistant MCP coupling: the add-on now connects Claude Code to the
