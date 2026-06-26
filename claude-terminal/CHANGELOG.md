@@ -1,6 +1,24 @@
 # Changelog
 
+All notable changes to this add-on are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/), and the project adheres to
+[Semantic Versioning](https://semver.org/) — see the **Release standard** in
+`CLAUDE.md`.
+
 ## Unreleased
+
+### 🧹 Housekeeping — removed dead weight
+- Removed three helper scripts that were baked into the image but wired to
+  nothing: `install-ha-cli.sh` (the HA CLI is already baked in the Dockerfile),
+  `ha-api-examples.sh` (reference material, never invoked), and
+  `persistent-packages.sh` (superseded by the inline `/etc/profile.d` generation
+  in `run.sh`).
+- Removed the obsolete macOS clipboard helper (`mac-clipboard-monitor.py` + its
+  doc) — the built-in web paste/upload covers the same need, and the script no
+  longer works under the ingress-only model.
+- Removed a stale root `DOCS.md` that had diverged from the add-on's authoritative
+  `claude-terminal/DOCS.md`.
+- No runtime behavior change — the removed scripts were never executed.
 
 ### 🔗 Home Assistant MCP (ha-mcp) — verified compatible with v7.x
 - Audited the ha-mcp auto-wiring against ha-mcp **v7.x** (latest v7.9.0): the

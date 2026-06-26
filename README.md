@@ -2,9 +2,11 @@
 
 A Home Assistant add-on that runs Anthropic's **Claude Code CLI** in a browser terminal — opened from your HA sidebar, starting in `/config` so Claude can read and edit your configuration in place. Persistent package installs and image paste included.
 
+![Claude Code for Home Assistant — the CLI running in a browser terminal from the Home Assistant sidebar](claude-terminal/screenshot.png)
+
 > **Community add-on** — not affiliated with, endorsed by, or supported by Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark of the Open Home Foundation. Claude Code itself is subject to Anthropic's terms.
 
-This is a maintained community fork of [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha) — see [About this fork](#about-this-fork).
+This is a maintained community fork of [ESJavadex/claude-code-ha](https://github.com/ESJavadex/claude-code-ha). **Why a fork?** It fixes the `statx` launch crash (Alpine 3.21 / musl 1.2.5), repairs package persistence, and auto-wires Claude to the Home Assistant MCP server out of the box — full rationale in [About this fork](#about-this-fork).
 
 ---
 
