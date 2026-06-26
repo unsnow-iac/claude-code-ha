@@ -43,6 +43,8 @@ This is the **only supported way** to update the Claude binary:
 3. Add a `claude-terminal/CHANGELOG.md` entry.
 4. Commit, push, then **Update/Rebuild the add-on** from the HA add-on store.
 
+Version, changelog, and tag/release mechanics follow the **[Release
+standard](#release-standard)** below — a routine Claude bump is normally a MINOR.
 Updates are delivered by **rebuilding the image**, not by updating inside the
 container. `/data` is preserved across rebuilds, so this is non-destructive.
 
@@ -58,6 +60,58 @@ container. `/data` is preserved across rebuilds, so this is non-destructive.
 `run.sh` defends against drift by **force-linking the launcher to the image's
 baked binary on every boot** (`init_environment`), so any stray in-container
 update self-heals on restart.
+
+## Release standard
+
+Releases follow **[Semantic Versioning](https://semver.org/)** and
+**[Keep a Changelog](https://keepachangelog.com/)**, with commits in
+**[Conventional Commits](https://www.conventionalcommits.org/)** style. The line
+continues from **4.5.0**; **never lower the version on `main`** — the store
+detects updates by the number increasing, so a downgrade can hide an update.
+
+### Versioning — what bumps which number
+
+- **MAJOR** (`X.0.0`) — a change existing users must act on: removing or renaming
+  a config option, changing a default that alters behavior, or a base-image /
+  architecture change that could disrupt installs.
+- **MINOR** (`x.Y.0`) — backward-compatible new capability: a new option or
+  feature, **and** routine Claude CLI version bumps (each ships new upstream
+  capability) unless the bump is purely a fix.
+- **PATCH** (`x.y.Z`) — backward-compatible fixes only: bug fixes, security
+  hardening, dependency bumps, doc/image fixes that ship in the image.
+
+### Cadence — release as needed, batched
+
+Cut a release when either (a) the weekly `claude-version-bump.yml` PR lands
+(typically a MINOR), or (b) enough user-meaningful change has accumulated under
+`## Unreleased` to be worth shipping. There is **no calendar obligation** — the
+auto-bump workflow supplies a natural heartbeat, and the store only ever offers
+the latest version, so micro-bumps just add changelog noise. Batch related PRs
+under one bump.
+
+### Changelog — Keep a Changelog
+
+`CHANGELOG.md` opens with `## Unreleased`; group entries under **Added / Changed /
+Fixed / Security / Removed / Deprecated**. To cut a release, rename
+`## Unreleased` to `## X.Y.Z — YYYY-MM-DD` and start a fresh `## Unreleased`.
+
+### Commits — Conventional Commits
+
+Type-prefix every commit: `feat`, `fix`, `chore`, `docs`, `ci`, `refactor`,
+`perf`, `test`, `build` (optional `(scope)`; `feat!:` or a `BREAKING CHANGE:`
+footer marks a MAJOR). Types map onto the SemVer bump above (`feat` → MINOR,
+`fix` → PATCH, breaking → MAJOR). No AI-attribution trailers (global hygiene).
+
+### Release procedure
+
+1. Accumulate notes under `## Unreleased` as PRs merge.
+2. Decide the SemVer bump from the accumulated change.
+3. Set `version:` in `config.yaml` **and** the label in `build.yaml` (CI enforces
+   they match); date the changelog section.
+4. Land it via a release branch + PR (never straight to `main`).
+5. After merge, tag `vX.Y.Z` (annotated) on `main` and publish a **GitHub
+   Release** with the changelog section as its notes — this is what the repo
+   homepage reads as "latest".
 
 ## Invariants — don't regress these
 
@@ -126,16 +180,10 @@ GitHub Actions in `.github/workflows/`:
 
 ## Conventions
 
-- **Every *release* bumps the version and adds a CHANGELOG entry** — not every
-  PR. A version marks a release users install, not an individual change, so
-  batch related PRs under one bump rather than minting a new version per PR.
-  Accumulate notes under a `## Unreleased` heading in `CHANGELOG.md`, then assign
-  the version + date in the commit that cuts the release (bump `config.yaml` and
-  the `build.yaml` label together — CI enforces they match). The add-on store
-  keys updates off `version:` and only ever offers the *latest*, so consecutive
-  micro-bumps just add changelog noise. **Never lower the version on `main`** —
-  the store detects updates by the number increasing, so a downgrade can make an
-  update invisible.
+- **Releases follow the [Release standard](#release-standard)** above — SemVer,
+  as-needed batched cadence, Keep a Changelog, Conventional Commits, and a
+  tag + GitHub Release per version. Not every PR is a release; batch under
+  `## Unreleased`.
 - Add-on shell scripts use `#!/usr/bin/with-contenv bashio` and
   `bashio::log.*` for output; `persist-install` is plain `#!/bin/bash`.
 - YAML: 2-space indent. Shell: 4-space indent.

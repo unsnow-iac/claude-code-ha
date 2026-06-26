@@ -54,26 +54,35 @@ jobs:
           # 1) Pin the new Claude version in the Dockerfile.
           sed -i "s/ARG CLAUDE_VERSION=.*/ARG CLAUDE_VERSION=${latest}/" claude-terminal/Dockerfile
 
-          # 2) Bump the add-on patch version in config.yaml and the build.yaml label.
+          # 2) Bump the add-on MINOR version (a new Claude CLI ships new upstream
+          #    capability → MINOR per the Release standard in CLAUDE.md) in
+          #    config.yaml and the build.yaml label.
           addon=$(grep -oP '^version:\s*"\K[^"]+' claude-terminal/config.yaml)
           IFS=. read -r maj min pat <<< "$addon"
-          newaddon="${maj}.${min}.$((pat + 1))"
+          newaddon="${maj}.$((min + 1)).0"
           sed -i "s/^version:\s*\".*\"/version: \"${newaddon}\"/" claude-terminal/config.yaml
           sed -i "s/org.opencontainers.image.version:\s*\".*\"/org.opencontainers.image.version: \"${newaddon}\"/" claude-terminal/build.yaml
 
-          # 3) Prepend a CHANGELOG entry (keep the existing "# Changelog" header).
+          # 3) Cut the release in CHANGELOG.md (Keep a Changelog): sweep whatever
+          #    is under "## Unreleased" into a new dated section led by the Claude
+          #    bump note, and reopen a fresh "## Unreleased". Header-agnostic.
+          today=$(date -u +%F)
           tmp=$(mktemp)
-          {
-            echo "# Changelog"
-            echo
-            echo "## ${newaddon}"
-            echo
-            echo "### ⬆️ Claude Code ${current} → ${latest}"
-            echo "- Bumped the baked Claude Code CLI to \`${latest}\`. Delivered by rebuilding the"
-            echo "  add-on image — update/rebuild from the HA add-on store to apply."
-            echo
-            tail -n +3 claude-terminal/CHANGELOG.md
-          } > "$tmp"
+          awk -v ver="$newaddon" -v date="$today" -v cur="$current" -v lat="$latest" '
+            /^## Unreleased[[:space:]]*$/ && !done {
+              print "## Unreleased"
+              print ""
+              print "## " ver " — " date
+              print ""
+              print "### ⬆️ Claude Code " cur " → " lat
+              print "- Bumped the baked Claude Code CLI to `" lat "`. Delivered by rebuilding the"
+              print "  add-on image — update/rebuild from the HA add-on store to apply."
+              print ""
+              done = 1
+              next
+            }
+            { print }
+          ' claude-terminal/CHANGELOG.md > "$tmp"
           mv "$tmp" claude-terminal/CHANGELOG.md
 
           echo "newaddon=$newaddon" >> "$GITHUB_OUTPUT"
@@ -90,12 +99,13 @@ jobs:
             Automated update opened by the **Check for Claude Code updates** workflow.
 
             - **Claude Code:** `${{ steps.versions.outputs.current }}` → `${{ steps.versions.outputs.latest }}`
-            - **Add-on version:** bumped to `${{ steps.bump.outputs.newaddon }}` (config.yaml + build.yaml label)
-            - **CHANGELOG:** entry added
+            - **Add-on version:** MINOR bump to `${{ steps.bump.outputs.newaddon }}` (config.yaml + build.yaml label)
+            - **CHANGELOG:** `## Unreleased` cut to `## ${{ steps.bump.outputs.newaddon }}` (Keep a Changelog)
 
             ### To ship it
             1. Review the diff below.
             2. Merge this PR.
-            3. **Update/Rebuild the add-on** from the Home Assistant add-on store — that's what actually delivers the new Claude binary (updates are not applied inside the running container).
+            3. Tag `v${{ steps.bump.outputs.newaddon }}` on `main` and publish a GitHub Release (per the **Release standard** in `CLAUDE.md`).
+            4. **Update/Rebuild the add-on** from the Home Assistant add-on store — that's what actually delivers the new Claude binary (updates are not applied inside the running container).
 
             > Note: PRs opened by the built-in workflow token don't automatically trigger the CI build. If you want CI to run on this PR, close and reopen it, or push an empty commit to the branch.
