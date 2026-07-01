@@ -7,6 +7,11 @@ All notable changes to this add-on are documented here. The format is based on
 
 ## Unreleased
 
+### 🔒 Reproducible image-service builds
+- The bundled image-service now installs from a committed `package-lock.json`
+  via `npm ci` (was an unpinned `npm install`), so its Node dependencies build
+  deterministically and are scannable by Dependabot for security updates.
+
 ## 4.6.0 — 2026-07-01
 
 ### ⬆️ Claude Code 2.1.185 → 2.1.197
