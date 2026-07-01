@@ -84,10 +84,12 @@ RUN case "${TARGETARCH}" in \
 RUN mkdir -p /config/claude-config
 WORKDIR /config
 
-# Copy and install image service
+# Copy and install image service. `npm ci` installs strictly from the committed
+# package-lock.json for reproducible builds (and gives Dependabot a lockfile to
+# scan); it errors out if the lockfile and package.json ever drift.
 COPY image-service/ /opt/image-service/
 RUN cd /opt/image-service \
-    && npm install --production --no-optional \
+    && npm ci --omit=dev --omit=optional \
     && npm cache clean --force \
     && chmod +x server.js
 

@@ -1,0 +1,33 @@
+# Dependabot keeps the repo's dependencies current and opens PRs when updates
+# (or security fixes) are available. Two ecosystems are in play:
+#   1. GitHub Actions pinned in .github/workflows/*.yml
+#   2. the npm deps of the bundled image-service (Express/multer/proxy)
+# See CLAUDE.md → "Release standard" for how these land (Conventional Commits,
+# batched under ## Unreleased). Docker/apk pins (Alpine base, Claude, gh, HA CLI)
+# are handled by the golden-rule flow + claude-version-bump.yml, not Dependabot.
+version: 2
+updates:
+  # Keep the CI/automation action pins from drifting (checkout, create-pull-request,
+  # docker/*, etc.). Minor/patch bumps are grouped into one PR to cut noise;
+  # majors (which can need a workflow change) come as individual PRs.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        update-types:
+          - minor
+          - patch
+
+  # The image-service ships in the add-on image, so its deps matter for security.
+  # Ungrouped so each bump (especially multer / http-proxy-middleware, both with
+  # CVE history) gets its own reviewable PR.
+  - package-ecosystem: npm
+    directory: "/claude-terminal/image-service"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build

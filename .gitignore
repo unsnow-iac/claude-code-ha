@@ -4,7 +4,8 @@
 node_modules/
 npm-debug.log
 yarn-error.log
-package-lock.json
+# NOTE: package-lock.json is intentionally committed — the image-service is built
+# with `npm ci` for reproducible, Dependabot-scannable installs. Do not re-ignore.
 yarn.lock
 
 # Logs
