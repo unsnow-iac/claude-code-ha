@@ -7,10 +7,10 @@ All notable changes to this add-on are documented here. The format is based on
 
 ## Unreleased
 
-## 4.6.0 — 2026-06-29
+## 4.6.0 — 2026-07-01
 
-### ⬆️ Claude Code 2.1.185 → 2.1.195
-- Bumped the baked Claude Code CLI to `2.1.195`. Delivered by rebuilding the
+### ⬆️ Claude Code 2.1.185 → 2.1.197
+- Bumped the baked Claude Code CLI to `2.1.197`. Delivered by rebuilding the
   add-on image — update/rebuild from the HA add-on store to apply.
 
 
