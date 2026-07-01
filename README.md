@@ -21,6 +21,17 @@ A browser-terminal Claude Code CLI for Home Assistant, opened from the sidebar o
 
 The Claude binary is **pinned** to a known-good version and updated by rebuilding the add-on — not from inside the container (see [Updating Claude Code](#updating-claude-code)).
 
+## What you can do with it
+
+Claude Code runs *inside* Home Assistant with your `/config` open — and, when paired with the [Home Assistant MCP server](#pairs-with-the-home-assistant-mcp-server), with live access to your entity states, history, and automation traces. That lets you drive real work in plain language. For example:
+
+- **Build dashboards** — *"Build a Lovelace dashboard for the downstairs floor with a climate card, a light group, and the front-door camera."* Claude writes the YAML into `/config`; you reload. *"Convert this dashboard to sections view and hide the garage row when the door is shut."*
+- **Author automations & scripts** — *"When the last person leaves after 9pm, turn everything off and arm the alarm."* Paired with ha-mcp, Claude schema-validates the automation before saving. *"Turn this 200-line automation into a reusable blueprint with inputs for the sensor and the delay."*
+- **Troubleshoot & investigate** — *"Why did the living-room lights turn on at 3am?"* With ha-mcp, Claude reads the logbook, history, and the automation trace to find the cause. *"This automation isn't firing — check its last trace and tell me which condition failed."*
+- **Maintain & refactor** — *"Find every automation still using the deprecated `service:` syntax and update it to `action:`."* *"Which entities have been `unavailable` for over a week?"* *"Split my monolithic `configuration.yaml` into packages."*
+
+> **Two modes, one deliberate split.** Reading and editing the files under `/config` works with just this add-on. *Operating and observing* your live system — calling services, reading state/history/traces, schema-validating changes — comes from pairing with the **[Home Assistant MCP server](#pairs-with-the-home-assistant-mcp-server)** (one-paste auto-wiring, below). Claude will tell you when a task needs it.
+
 ## Install
 
 1. **Settings → Add-ons → Add-on Store**, open the **⋮** menu, choose **Repositories**.
