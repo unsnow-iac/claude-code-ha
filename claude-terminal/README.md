@@ -2,7 +2,7 @@
 
 A web-based terminal with the Claude Code CLI and persistent package management for Home Assistant.
 
-![Claude Code terminal screenshot](screenshot.png)
+![Claude Code for Home Assistant running in a browser terminal, using the Home Assistant MCP tools to analyze how often an automation has triggered today](screenshot.png)
 
 *The Claude Code terminal running in Home Assistant*
 
