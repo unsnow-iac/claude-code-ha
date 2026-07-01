@@ -32,7 +32,7 @@ RUN apk add --no-cache \
 # an add-on release — that is the only supported update path; in-container
 # `claude update` is disabled (DISABLE_AUTOUPDATER) and reset on restart.
 # Native installer first (Bun runtime); npm fallback if the CPU lacks AVX.
-ARG CLAUDE_VERSION=2.1.185
+ARG CLAUDE_VERSION=2.1.197
 RUN (curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_VERSION}" \
     && ln -sf /root/.local/bin/claude /usr/local/bin/claude) \
     || npm install -g @anthropic-ai/claude-code@"${CLAUDE_VERSION}"

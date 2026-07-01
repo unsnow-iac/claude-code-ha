@@ -1,7 +1,7 @@
 ---
 name: "Claude Code for Home Assistant"
 description: "Community add-on (not affiliated with Anthropic or Home Assistant): the Claude Code CLI in a browser terminal, with persistent packages, image paste, and Home Assistant MCP auto-wiring."
-version: "4.5.0"
+version: "4.6.0"
 slug: "claude_terminal_unsnow"
 init: false
 
