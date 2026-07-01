@@ -91,6 +91,17 @@ jobs:
         if: steps.versions.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
+          # A PR opened with the default GITHUB_TOKEN does NOT trigger other
+          # workflows (a GitHub anti-recursion guard), so ci.yml never ran on
+          # these bump PRs — they showed up as "action_required" and had to be
+          # kicked manually. Opening the PR with a user-owned Personal Access
+          # Token instead makes it a "real" PR that fires ci.yml normally.
+          # Falls back to the default token when BUMP_PAT is unset, so the
+          # workflow still works (minus auto-CI) before the secret is added.
+          # One-time setup: create a fine-grained PAT scoped to this repo with
+          # Contents: Read/Write + Pull requests: Read/Write, then save it as the
+          # repo secret BUMP_PAT (Settings → Secrets and variables → Actions).
+          token: ${{ secrets.BUMP_PAT || github.token }}
           branch: claude-update/${{ steps.versions.outputs.latest }}
           delete-branch: true
           commit-message: "feat: update Claude Code ${{ steps.versions.outputs.current }} -> ${{ steps.versions.outputs.latest }}"
@@ -108,4 +119,4 @@ jobs:
             3. Tag `v${{ steps.bump.outputs.newaddon }}` on `main` and publish a GitHub Release (per the **Release standard** in `CLAUDE.md`).
             4. **Update/Rebuild the add-on** from the Home Assistant add-on store — that's what actually delivers the new Claude binary (updates are not applied inside the running container).
 
-            > Note: PRs opened by the built-in workflow token don't automatically trigger the CI build. If you want CI to run on this PR, close and reopen it, or push an empty commit to the branch.
+            > CI runs automatically on this PR when the repo secret `BUMP_PAT` is configured (a fine-grained PAT with Contents + Pull requests write). If it isn't set yet, this PR is opened with the default workflow token, which doesn't trigger CI — close/reopen it or push an empty commit to run the checks.
