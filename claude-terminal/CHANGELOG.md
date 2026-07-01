@@ -7,6 +7,16 @@ All notable changes to this add-on are documented here. The format is based on
 
 ## Unreleased
 
+### 🧪 CI runtime smoke test
+- CI now **runs** the built image instead of only building it, closing the gap
+  this fork exists to fix. Two checks run after the amd64 build: (1) it execs the
+  baked `claude` binary and requires a clean `--version`, catching the musl
+  `statx`-class dynamic-linker crash (`symbol not found`) that a plain build can't
+  see because it only fires when the binary launches; and (2) it boots the full
+  container and polls the image-service `/health` endpoint, catching a `run.sh`
+  that aborts on boot or a broken image-service. No add-on behavior change —
+  CI-only.
+
 ### 🔒 Reproducible image-service builds
 - The bundled image-service now installs from a committed `package-lock.json`
   via `npm ci` (was an unpinned `npm install`), so its Node dependencies build

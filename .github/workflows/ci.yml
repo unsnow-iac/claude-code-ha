@@ -77,7 +77,7 @@ jobs:
           fi
 
   build:
-    name: Build image (amd64)
+    name: Build & smoke-test image (amd64)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -85,9 +85,10 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       # Build against the real Alpine 3.21 base, exactly as the HA builder would,
       # to prove the image still builds. amd64 only (native, fast, reliable);
-      # arm builds would need slow QEMU emulation and can be added later. Note:
-      # this catches *build* failures, not runtime ones like the musl `statx`
-      # crash, which only appear when the binary launches on a device.
+      # arm builds would need slow QEMU emulation and can be added later.
+      # `load: true` loads the result into the local Docker daemon so the smoke
+      # steps below can actually run it — a plain build proves it compiles, but
+      # only running it catches the class of failure this fork exists to fix.
       - name: Build amd64 image
         uses: docker/build-push-action@v6
         with:
@@ -95,4 +96,58 @@ jobs:
           build-args: |
             BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.21
           push: false
+          load: true
           tags: local/claude-terminal:ci
+
+      # THE reason this job runs the image. The bug this fork exists to fix is a
+      # runtime dynamic-linker crash — `Error relocating ...: statx: symbol not
+      # found` — that a plain build cannot see because it only fires when the
+      # native binary is *executed* under the base image's musl. Exec the baked
+      # binary directly (bypassing s6/run.sh) and require a clean `--version`.
+      # A full-boot /health probe would NOT catch this: the container stays up
+      # even when the claude session dies, so we must run the binary itself.
+      - name: Smoke test — Claude binary launches (statx-class guard)
+        run: |
+          set -o pipefail
+          out=$(timeout 60 docker run --rm \
+            --entrypoint claude \
+            -e HOME=/tmp -e DISABLE_AUTOUPDATER=1 \
+            local/claude-terminal:ci --version 2>&1) || {
+            echo "::error::Claude binary failed to launch — see output below"
+            echo "$out"
+            exit 1
+          }
+          echo "claude --version → $out"
+          # Belt-and-suspenders: fail even if the loader exits 0 but warns.
+          case "$out" in
+            *"symbol not found"*|*"Error relocating"*)
+              echo "::error::Dynamic-linker relocation error (statx-class crash)"
+              exit 1 ;;
+          esac
+
+      # Full boot: prove run.sh comes up under the container's init and the
+      # image-service serves /health (port 7680). Catches a run.sh that aborts
+      # on boot or a broken image-service — failures a static build misses.
+      - name: Smoke test — container boots and /health responds
+        run: |
+          docker run -d --name cc-smoke -p 7680:7680 \
+            -v "${RUNNER_TEMP}/cc-smoke-config:/config" \
+            local/claude-terminal:ci
+          # Generous window: run.sh runs a network health check (several curls,
+          # ~15s max each) *before* it starts the image-service, so allow ~90s.
+          ok=0
+          for i in $(seq 1 45); do
+            if curl -fsS http://localhost:7680/health >/dev/null 2>&1; then
+              echo "Health OK after $((i * 2))s: $(curl -fsS http://localhost:7680/health)"
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          echo "=== container logs ==="
+          docker logs cc-smoke 2>&1 || true
+          docker rm -f cc-smoke >/dev/null 2>&1 || true
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::image-service /health never became ready within 90s"
+            exit 1
+          fi
