@@ -2,7 +2,7 @@
 
 A Home Assistant add-on that runs Anthropic's **Claude Code CLI** in a browser terminal — opened from your HA sidebar, starting in `/config` so Claude can read and edit your configuration in place. Persistent package installs and image paste included.
 
-![Claude Code for Home Assistant — the CLI running in a browser terminal from the Home Assistant sidebar](claude-terminal/screenshot.png)
+<img width="1661" height="930" alt="bild" src="https://github.com/user-attachments/assets/3950fd33-c854-4607-ad58-ca13eeaee9ea" />
 
 > **Community add-on** — not affiliated with, endorsed by, or supported by Anthropic or the Home Assistant project / Open Home Foundation. "Claude" and "Claude Code" are trademarks of Anthropic, PBC; "Home Assistant" is a trademark of the Open Home Foundation. Claude Code itself is subject to Anthropic's terms.
 
