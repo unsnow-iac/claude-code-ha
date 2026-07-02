@@ -7,6 +7,13 @@ All notable changes to this add-on are documented here. The format is based on
 
 ## Unreleased
 
+## 4.7.0 — 2026-07-02
+
+### ⬆️ Claude Code 2.1.197 → 2.1.198
+- Bumped the baked Claude Code CLI to `2.1.198`. Delivered by rebuilding the
+  add-on image — update/rebuild from the HA add-on store to apply.
+
+
 ### 🧪 CI runtime smoke test
 - CI now **runs** the built image instead of only building it, closing the gap
   this fork exists to fix. Two checks run after the amd64 build: (1) it execs the
