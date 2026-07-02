@@ -92,9 +92,20 @@ copy_lib_deps() {
 }
 
 install_system_packages() {
-    local packages="$*"
+    # Package names never contain whitespace, so split any space-separated
+    # argument into individual names first: `persist-install "git tmux"` was
+    # accepted in 4.x (via accidental word-splitting) and must keep working.
+    # `read -a` splits without re-enabling glob expansion; each name is then
+    # passed as its own quoted argument below.
+    local -a pkgs=() parts=()
+    local arg
+    for arg in "$@"; do
+        read -ra parts <<< "$arg"
+        pkgs+=("${parts[@]}")
+    done
+    set -- "${pkgs[@]}"
 
-    echo "📦 Installing system packages: $packages"
+    echo "📦 Installing system packages: $*"
     echo ""
 
     # Install via APK first. Pass "$@" so each package stays a single argument —
@@ -137,9 +148,16 @@ install_system_packages() {
 }
 
 install_python_packages() {
-    local packages="$*"
+    # Same whitespace-splitting compatibility shim as install_system_packages.
+    local -a pkgs=() parts=()
+    local arg
+    for arg in "$@"; do
+        read -ra parts <<< "$arg"
+        pkgs+=("${parts[@]}")
+    done
+    set -- "${pkgs[@]}"
 
-    echo "🐍 Installing Python packages: $packages"
+    echo "🐍 Installing Python packages: $*"
     echo ""
 
     # Ensure Python and venv exist

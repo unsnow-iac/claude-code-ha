@@ -15,9 +15,15 @@ All notable changes to this add-on are documented here. The format is based on
   authenticated Home Assistant ingress panel.** ttyd (the browser terminal) runs
   as a writable, credential-less root shell; it is now bound to **loopback
   (`127.0.0.1`) inside the container**, so it can never be reached off-box. The
-  image service that fronts it now **enforces an ingress-origin check** — requests
-  that do not arrive through HA ingress get `403` (set `ENFORCE_INGRESS=0` to
-  opt out for local debugging).
+  image service that fronts it now **only accepts connections from Home
+  Assistant's ingress gateway** (`172.30.32.2`, per the HA add-on docs) or the
+  container's own loopback. This is enforced on the TCP peer address — which,
+  unlike ingress headers, a caller cannot forge — and rejected requests get
+  `403` (set `ENFORCE_INGRESS=0` to opt out for local debugging outside HA).
+- **Boot now fails fast if the ingress proxy can't start.** With ingress the only
+  route in, a failed image-service start would previously log "continuing with
+  terminal only" while nothing was actually reachable; the add-on now stops with
+  a clear error instead.
 - **Removed the `ports:` mapping option entirely.** Neither port (7680/7681) can be
   mapped to the host from the add-on's Network panel anymore. Ingress needs no host
   mapping, so normal use is unaffected; this closes the door on accidentally
@@ -42,6 +48,10 @@ All notable changes to this add-on are documented here. The format is based on
 - **Legacy auth migration only trusts image-internal paths.** Dropped the
   world/user-writable `/tmp/claude-config` and `/config/claude-config` migration
   sources so seeded files can't be imported into Claude's credential directory.
+  **Upgrade note:** if your Claude sign-in still lives only in
+  `/config/claude-config` (installs from the upstream add-on lineage), it will
+  not be imported — open the terminal and sign in once; credentials are then
+  stored in the add-on-private `/data`.
 
 ## 4.7.0 — 2026-07-02
 

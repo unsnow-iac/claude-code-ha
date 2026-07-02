@@ -28,15 +28,22 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/images';
 
 // Defense in depth: this service must bind 0.0.0.0 so Home Assistant ingress can
 // reach it over the internal Supervisor network, but nothing else on that network
-// should. HA ingress always stamps these headers on proxied requests (the add-on's
-// own frontend calls carry them too, since the panel is served through ingress);
-// a direct hit from another container will not. Reject those. Set ENFORCE_INGRESS=0
-// to disable (e.g. for local debugging outside HA).
+// should. Enforcement is by TCP peer address, per the HA add-on developer docs:
+// ingress requests always originate from Home Assistant's ingress gateway
+// (172.30.32.2), and add-ons must only accept ingress traffic from that address.
+// Unlike the X-Ingress-Path / X-Hass-Source headers (which any direct caller can
+// forge), the peer address of an established TCP connection is not attacker-
+// controlled. Loopback is also trusted so in-container callers (health checks,
+// `docker exec` debugging) keep working. Set ENFORCE_INGRESS=0 to disable — e.g.
+// for local testing outside HA, where requests arrive from the container's
+// bridge gateway instead.
 const ENFORCE_INGRESS = process.env.ENFORCE_INGRESS !== '0';
+const INGRESS_GATEWAY = '172.30.32.2';
 
-function isIngressRequest(req) {
-    return Boolean(req.headers['x-ingress-path']) ||
-        req.headers['x-hass-source'] === 'core.ingress';
+function isTrustedPeer(req) {
+    const raw = req.socket.remoteAddress || '';
+    const addr = raw.startsWith('::ffff:') ? raw.slice(7) : raw; // IPv4-mapped IPv6
+    return addr === INGRESS_GATEWAY || addr === '127.0.0.1' || addr === '::1';
 }
 
 // Ensure upload directory exists
@@ -77,12 +84,18 @@ const upload = multer({
 // API routes MUST come before static files middleware
 // Otherwise static middleware will intercept API requests
 
-// Ingress-origin guard (see ENFORCE_INGRESS above). Runs before every route.
-// /health is exempt so the container health check / CI smoke test can poll it
-// without ingress headers.
+// Health check endpoint — registered BEFORE the ingress guard so the container
+// health check / CI smoke test can poll it without coming through ingress.
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', uploadDir: UPLOAD_DIR });
+});
+
+// Ingress-origin guard (see ENFORCE_INGRESS above). Express runs middleware in
+// registration order, so routes above this point (only /health) are exempt by
+// construction; everything below requires a trusted peer.
 if (ENFORCE_INGRESS) {
     app.use((req, res, next) => {
-        if (req.path === '/health' || isIngressRequest(req)) {
+        if (isTrustedPeer(req)) {
             return next();
         }
         res.status(403).json({
@@ -90,11 +103,6 @@ if (ENFORCE_INGRESS) {
         });
     });
 }
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', uploadDir: UPLOAD_DIR });
-});
 
 // Provide ttyd port to frontend
 app.get('/config', (req, res) => {
@@ -172,10 +180,14 @@ const server = http.createServer(app);
 
 // WebSocket upgrades (the ttyd terminal) bypass the Express middleware chain —
 // they are handled on the server's 'upgrade' event by http-proxy-middleware. This
-// listener is registered first, so it gates non-ingress upgrade attempts before the
-// proxy can forward them to ttyd.
+// listener is registered first, so it gates non-ingress upgrade attempts before
+// the proxy can forward them to ttyd. Rejections answer with a 403 and log the
+// peer, rather than silently dropping the socket — otherwise a blocked upgrade
+// presents as an endlessly reconnecting blank terminal with nothing in the log.
 server.on('upgrade', (req, socket) => {
-    if (ENFORCE_INGRESS && !isIngressRequest(req)) {
+    if (ENFORCE_INGRESS && !isTrustedPeer(req)) {
+        console.warn(`Rejected WebSocket upgrade from untrusted peer ${req.socket.remoteAddress} (${req.url})`);
+        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
         socket.destroy();
     }
 });

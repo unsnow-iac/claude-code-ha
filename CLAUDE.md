@@ -160,8 +160,11 @@ podman build \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.21 \
   -t local/claude-terminal:test ./claude-terminal
 
-# Run, inspect, tear down
-podman run -d --name cc-test -p 7681:7681 -v /tmp/cc-config:/config local/claude-terminal:test
+# Run, inspect, tear down. Ingress-only since 5.0.0: ttyd is loopback-bound
+# inside the container, so map the image-service port (7680, the ingress
+# entrypoint) — and set ENFORCE_INGRESS=0, because outside HA there is no
+# ingress gateway and the origin guard would 403 everything except /health.
+podman run -d --name cc-test -p 7680:7680 -e ENFORCE_INGRESS=0 -v /tmp/cc-config:/config local/claude-terminal:test
 podman logs -f cc-test
 podman stop cc-test && podman rm cc-test
 
