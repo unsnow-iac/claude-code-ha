@@ -163,7 +163,7 @@ This add-on includes a comprehensive development setup using Nix:
 ```bash
 # Available development commands
 build-addon      # Build the add-on container with Podman
-run-addon        # Run add-on locally on port 7681
+run-addon        # Run add-on locally on port 7680 (ingress guard disabled)
 lint-dockerfile  # Lint Dockerfile with hadolint
 test-endpoint    # Test web endpoint availability
 ```

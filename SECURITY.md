@@ -47,8 +47,9 @@ panel**. Treat access to this add-on as equivalent to root on your HA config.
   authorization before any request reaches the add-on.
 - **No host ports.** There is deliberately no `ports:` mapping — ttyd and the image
   service **cannot** be exposed on the host/LAN from the Network panel. ttyd is
-  bound to loopback inside the container, and the image service rejects any request
-  that did not arrive through ingress.
+  bound to loopback inside the container, and the image service only accepts
+  connections from Home Assistant's ingress gateway or the container's own
+  loopback (enforced on the TCP peer address, which a caller cannot forge).
 - **Running a fork that re-adds a host port, or otherwise bypassing ingress, is
   unsupported** and exposes an unauthenticated root shell. Don't.
 
