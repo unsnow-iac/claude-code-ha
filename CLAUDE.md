@@ -74,16 +74,19 @@ detects updates by the number increasing, so a downgrade can hide an update.
 - **MAJOR** (`X.0.0`) — a change existing users must act on: removing or renaming
   a config option, changing a default that alters behavior, or a base-image /
   architecture change that could disrupt installs.
-- **MINOR** (`x.Y.0`) — backward-compatible new capability: a new option or
-  feature, **and** routine Claude CLI version bumps (each ships new upstream
-  capability) unless the bump is purely a fix.
-- **PATCH** (`x.y.Z`) — backward-compatible fixes only: bug fixes, security
-  hardening, dependency bumps, doc/image fixes that ship in the image.
+- **MINOR** (`x.Y.0`) — a backward-compatible new capability in the **add-on
+  itself**: a new config option or feature.
+- **PATCH** (`x.y.Z`) — backward-compatible fixes and routine upkeep: bug fixes,
+  security hardening, dependency bumps, doc/image fixes that ship in the image,
+  **and routine Claude CLI version bumps**. Rationale: SemVer versions the add-on's
+  own surface (options, ports, behavior); swapping the baked Claude binary doesn't
+  change that surface, so a Claude-only bump is a PATCH. This keeps MINOR meaningful
+  and stops the version running away under Claude's ~weekly release cadence.
 
 ### Cadence — release as needed, batched
 
 Cut a release when either (a) the weekly `claude-version-bump.yml` PR lands
-(typically a MINOR), or (b) enough user-meaningful change has accumulated under
+(a PATCH), or (b) enough user-meaningful change has accumulated under
 `## Unreleased` to be worth shipping. There is **no calendar obligation** — the
 auto-bump workflow supplies a natural heartbeat, and the store only ever offers
 the latest version, so micro-bumps just add changelog noise. Batch related PRs
@@ -100,7 +103,10 @@ Fixed / Security / Removed / Deprecated**. To cut a release, rename
 Type-prefix every commit: `feat`, `fix`, `chore`, `docs`, `ci`, `refactor`,
 `perf`, `test`, `build` (optional `(scope)`; `feat!:` or a `BREAKING CHANGE:`
 footer marks a MAJOR). Types map onto the SemVer bump above (`feat` → MINOR,
-`fix` → PATCH, breaking → MAJOR). No AI-attribution trailers (global hygiene).
+`fix` → PATCH, breaking → MAJOR), with one deliberate exception: the automated
+Claude CLI bump is committed as `feat:` (it delivers new upstream capability) but
+is versioned as a **PATCH** per the rule above — the add-on's own surface is
+unchanged. No AI-attribution trailers (global hygiene).
 
 ### Release procedure
 
@@ -109,9 +115,11 @@ footer marks a MAJOR). Types map onto the SemVer bump above (`feat` → MINOR,
 3. Set `version:` in `config.yaml` **and** the label in `build.yaml` (CI enforces
    they match); date the changelog section.
 4. Land it via a release branch + PR (never straight to `main`).
-5. After merge, tag `vX.Y.Z` (annotated) on `main` and publish a **GitHub
-   Release** with the changelog section as its notes — this is what the repo
-   homepage reads as "latest".
+5. After merge, tag `vX.Y.Z` (annotated) on `main` and push the tag. The
+   **`release.yml`** workflow then publishes the **GitHub Release** automatically,
+   using that version's `CHANGELOG.md` section as the notes (it refuses to publish
+   if the tag doesn't match `config.yaml`). This is what the repo homepage reads as
+   "latest" — you only decide when and what to tag.
 
 ## Invariants — don't regress these
 
@@ -177,6 +185,13 @@ GitHub Actions in `.github/workflows/`:
   repo setting *Actions → General → "Allow GitHub Actions to create and approve
   pull requests"* (already enabled).
 - **`claude.yml`** — the `@claude` responder for issues/PRs (unchanged).
+- **`release.yml`** — triggered by pushing a `vX.Y.Z` tag. Extracts that version's
+  `CHANGELOG.md` section and publishes it as a GitHub Release (after checking the
+  tag matches `config.yaml`). Automates step 5 of the release procedure.
+
+All third-party actions are **pinned to a full commit SHA** with a `# vX.Y.Z`
+comment; Dependabot (`github-actions` ecosystem) keeps the SHA and comment current.
+CI runs with an explicit least-privilege `permissions:` block.
 
 ## Conventions
 

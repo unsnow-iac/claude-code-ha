@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Compare current vs latest Claude Code version
         id: versions
@@ -47,19 +47,26 @@ jobs:
       - name: Apply the bump
         if: steps.versions.outputs.changed == 'true'
         id: bump
+        # Pass the step outputs through env: rather than interpolating ${{ }}
+        # directly into the shell below. The values here are trusted (a Dockerfile
+        # grep and an npm semver string), but interpolating expressions into a
+        # run: block is the script-injection anti-pattern — env: is the safe form.
+        env:
+          CURRENT: ${{ steps.versions.outputs.current }}
+          LATEST: ${{ steps.versions.outputs.latest }}
         run: |
-          current="${{ steps.versions.outputs.current }}"
-          latest="${{ steps.versions.outputs.latest }}"
-
           # 1) Pin the new Claude version in the Dockerfile.
-          sed -i "s/ARG CLAUDE_VERSION=.*/ARG CLAUDE_VERSION=${latest}/" claude-terminal/Dockerfile
+          sed -i "s/ARG CLAUDE_VERSION=.*/ARG CLAUDE_VERSION=${LATEST}/" claude-terminal/Dockerfile
 
-          # 2) Bump the add-on MINOR version (a new Claude CLI ships new upstream
-          #    capability → MINOR per the Release standard in CLAUDE.md) in
-          #    config.yaml and the build.yaml label.
+          # 2) Bump the add-on PATCH version. A routine Claude CLI bump swaps the
+          #    baked binary but does not change the add-on's own surface (options,
+          #    ports, behaviour), so it is a PATCH per the Release standard in
+          #    CLAUDE.md — this keeps MINOR meaningful and stops the version running
+          #    away under Claude's ~weekly cadence. config.yaml and the build.yaml
+          #    label move together.
           addon=$(grep -oP '^version:\s*"\K[^"]+' claude-terminal/config.yaml)
           IFS=. read -r maj min pat <<< "$addon"
-          newaddon="${maj}.$((min + 1)).0"
+          newaddon="${maj}.${min}.$((pat + 1))"
           sed -i "s/^version:\s*\".*\"/version: \"${newaddon}\"/" claude-terminal/config.yaml
           sed -i "s/org.opencontainers.image.version:\s*\".*\"/org.opencontainers.image.version: \"${newaddon}\"/" claude-terminal/build.yaml
 
@@ -68,7 +75,7 @@ jobs:
           #    bump note, and reopen a fresh "## Unreleased". Header-agnostic.
           today=$(date -u +%F)
           tmp=$(mktemp)
-          awk -v ver="$newaddon" -v date="$today" -v cur="$current" -v lat="$latest" '
+          awk -v ver="$newaddon" -v date="$today" -v cur="$CURRENT" -v lat="$LATEST" '
             /^## Unreleased[[:space:]]*$/ && !done {
               print "## Unreleased"
               print ""
@@ -89,7 +96,7 @@ jobs:
 
       - name: Open pull request
         if: steps.versions.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
         with:
           # A PR opened with the default GITHUB_TOKEN does NOT trigger other
           # workflows (a GitHub anti-recursion guard), so ci.yml never ran on
@@ -110,7 +117,7 @@ jobs:
             Automated update opened by the **Check for Claude Code updates** workflow.
 
             - **Claude Code:** `${{ steps.versions.outputs.current }}` → `${{ steps.versions.outputs.latest }}`
-            - **Add-on version:** MINOR bump to `${{ steps.bump.outputs.newaddon }}` (config.yaml + build.yaml label)
+            - **Add-on version:** PATCH bump to `${{ steps.bump.outputs.newaddon }}` (config.yaml + build.yaml label)
             - **CHANGELOG:** `## Unreleased` cut to `## ${{ steps.bump.outputs.newaddon }}` (Keep a Changelog)
 
             ### To ship it

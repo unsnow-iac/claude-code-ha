@@ -1,0 +1,71 @@
+name: Release
+
+# Publishes a GitHub Release when a version tag is pushed. This closes the manual
+# gap in the release procedure (CLAUDE.md): after you merge a release PR and push
+# an annotated `vX.Y.Z` tag, this extracts that version's CHANGELOG section and
+# publishes it as the Release notes — which is what the repo homepage reads as
+# "latest". The human still decides WHEN and WHAT to tag; this only automates the
+# copy-paste.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Only needs to create the Release.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Sanity-check tag matches the add-on version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          cfg=$(grep -oP '^version:\s*"\K[^"]+' claude-terminal/config.yaml)
+          echo "tag version: $version"
+          echo "config.yaml: $cfg"
+          if [ "$version" != "$cfg" ]; then
+            echo "::error::Tag $TAG does not match config.yaml version $cfg — refusing to publish."
+            exit 1
+          fi
+
+      - name: Extract changelog section for this tag
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          file=claude-terminal/CHANGELOG.md
+          # Print the block from "## <version>" up to (but not including) the next
+          # "## " version header. "### " subsection headers are kept.
+          notes=$(awk -v ver="$version" '
+            $0 ~ "^## " ver "([[:space:]]|$)" { grab = 1; next }
+            grab && /^## / { exit }
+            grab { print }
+          ' "$file")
+          if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+            echo "::error::No CHANGELOG section found for $version in $file"
+            exit 1
+          fi
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "$notes"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          BODY: ${{ steps.notes.outputs.body }}
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --notes "$BODY"
