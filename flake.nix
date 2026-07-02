@@ -44,10 +44,12 @@
             
             # Create convenience aliases
             alias build-addon='podman build --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.21 -t local/claude-terminal ./claude-terminal'
-            alias run-addon='podman run -p 7681:7681 -v $(pwd)/config:/config local/claude-terminal'
+            # Ingress-only since 5.0.0: ttyd is loopback-bound in the container, so map
+            # the image-service port (7680) and disable the ingress-origin guard.
+            alias run-addon='podman run -p 7680:7680 -e ENFORCE_INGRESS=0 -v $(pwd)/config:/config local/claude-terminal'
             alias validate-addon='echo "Note: Home Assistant builder validation requires HA OS environment"'
             alias lint-dockerfile='hadolint ./claude-terminal/Dockerfile'
-            alias test-endpoint='curl -X GET http://localhost:7681/ || echo "Add-on not running. Use: run-addon"'
+            alias test-endpoint='curl -fsS http://localhost:7680/health || echo "Add-on not running. Use: run-addon"'
           '';
         };
       });

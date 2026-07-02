@@ -32,6 +32,13 @@ RUN apk add --no-cache \
 # an add-on release — that is the only supported update path; in-container
 # `claude update` is disabled (DISABLE_AUTOUPDATER) and reset on restart.
 # Native installer first (Bun runtime); npm fallback if the CPU lacks AVX.
+#
+# SECURITY NOTE — accepted risk: `install.sh` is piped to bash without a checksum
+# or signature. It is fetched over TLS from Anthropic's own domain and the CLI
+# version is pinned, so this is bounded to trusting the upstream vendor at build
+# time (the same trust the npm fallback requires). There is no first-party
+# checksum published for the installer to verify against; if Anthropic ever
+# publishes one, verify it here. Do not widen this to an unpinned version.
 ARG CLAUDE_VERSION=2.1.198
 RUN (curl -fsSL https://claude.ai/install.sh | bash -s -- "${CLAUDE_VERSION}" \
     && ln -sf /root/.local/bin/claude /usr/local/bin/claude) \

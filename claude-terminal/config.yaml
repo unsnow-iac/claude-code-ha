@@ -1,7 +1,7 @@
 ---
 name: "Claude Code for Home Assistant"
 description: "Community add-on (not affiliated with Anthropic or Home Assistant): the Claude Code CLI in a browser terminal, with persistent packages, image paste, and Home Assistant MCP auto-wiring."
-version: "4.7.0"
+version: "5.0.0"
 slug: "claude_terminal_unsnow"
 init: false
 
@@ -20,18 +20,15 @@ panel_icon: mdi:code-braces-box
 panel_title: "Claude Code"
 
 # Port configuration
-# Default to NOT exposing these on the host network: the add-on is meant to be
-# used through the authenticated Home Assistant ingress panel above. ttyd runs
-# `--writable` with no credentials, so a host-mapped port would be an
-# unauthenticated root shell reachable by anyone on the LAN. Both default to
-# `null` (not exposed); an advanced user can still assign a host port from the
-# add-on's Network panel if they accept that risk.
-ports:
-  7680/tcp: null
-  7681/tcp: null
-ports_description:
-  7680/tcp: "Optional direct web interface — UNAUTHENTICATED. Leave unset; use the ingress panel."
-  7681/tcp: "Optional direct ttyd terminal — UNAUTHENTICATED. Leave unset; use the ingress panel."
+# Deliberately NO `ports:` block. This add-on is reachable ONLY through the
+# authenticated Home Assistant ingress panel above (ingress connects over the
+# internal Supervisor network via `ingress_port`, which needs no host mapping).
+# ttyd runs `--writable` with no credentials — a full root shell — and is bound to
+# loopback inside the container (run.sh), while the image-service enforces an
+# ingress-origin check. Omitting `ports:` means neither port can be mapped to the
+# host from the Network panel, so there is no way to expose that unauthenticated
+# root shell on the LAN. A power user who genuinely needs direct port access must
+# run a local fork and add their own `ports:` + authentication.
 
 # Add-on configuration options
 # (use_persistent_claude / auto_update_claude_on_start removed: that layer

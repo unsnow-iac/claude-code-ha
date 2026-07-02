@@ -108,10 +108,11 @@ The add-on works out of the box. Configurable options — auto-launch,
 persistent-package auto-install — are documented in the
 [options table](../README.md#configuration) in the repository README. Other facts:
 
-- **Access**: Served over the authenticated Home Assistant ingress panel; the
-  direct `7680`/`7681` host ports are unset by default and should stay that way
-  (ttyd runs unauthenticated, so a host-mapped port is an open root shell on
-  your LAN)
+- **Access**: Served over the authenticated Home Assistant ingress panel only.
+  ttyd runs unauthenticated (a writable root shell), so it is bound to loopback
+  inside the container and the `7680`/`7681` ports cannot be mapped to the host —
+  there is no way to expose an open root shell on your LAN. In-container access via
+  `docker exec` is unaffected.
 - **Authentication**: OAuth with Anthropic (credentials stored under `/data/.config/claude`, which persists across restarts and rebuilds)
 - **Terminal**: Full bash environment with Claude Code CLI pre-installed
 - **Volumes**: Read/write access to `/config` (Home Assistant configuration)
@@ -162,7 +163,7 @@ This add-on includes a comprehensive development setup using Nix:
 ```bash
 # Available development commands
 build-addon      # Build the add-on container with Podman
-run-addon        # Run add-on locally on port 7681
+run-addon        # Run add-on locally on port 7680 (ingress guard disabled)
 lint-dockerfile  # Lint Dockerfile with hadolint
 test-endpoint    # Test web endpoint availability
 ```

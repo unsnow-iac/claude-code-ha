@@ -4,6 +4,12 @@
 set -e
 set -o pipefail
 
+# Single source of truth for the persistent-package dirs added to PATH. Used by
+# the system-first append at boot (init_environment), the /etc/profile.d script
+# it writes, and the persist-first prepend for the terminal session
+# (start_web_terminal) — one definition keeps the three in lockstep.
+readonly PERSIST_PATHS="/data/packages/bin:/data/packages/python/venv/bin:/data/home/.local/bin"
+
 # Initialize environment for Claude Code CLI using /data (HA best practice)
 init_environment() {
     # Use /data exclusively - guaranteed writable by HA Supervisor
@@ -76,9 +82,22 @@ init_environment() {
         export IS_SANDBOX=1
     fi
 
-    # Setup persistent package paths (HIGHEST PRIORITY)
-    export PATH="$persist_bin:$persist_python/venv/bin:$data_home/.local/bin:$PATH"
-    export LD_LIBRARY_PATH="$persist_lib:${LD_LIBRARY_PATH:-}"
+    # PATH ordering — deliberately SYSTEM-FIRST for run.sh's own boot logic.
+    # `/data/packages` is writable and persistent, so it's exactly where a
+    # compromised session would drop a binary to survive a reboot. run.sh runs as
+    # root and its bashio helpers shell out to `jq`/`curl` by name, so the boot
+    # context must resolve trusted baked binaries, not anything planted in /data.
+    # Appending (not prepending) the persist dirs keeps persist-ONLY tools (e.g. a
+    # user-installed `git`) reachable while preventing a persisted binary from
+    # shadowing a baked one at boot. The interactive terminal gets persist-FIRST
+    # separately, right before `exec ttyd` (see start_web_terminal), and sub-shells
+    # get it via /etc/profile.d below — so the persistence feature is unaffected.
+    export PATH="$PATH:$PERSIST_PATHS"
+    # Do NOT put /data/packages/lib on run.sh's own LD_LIBRARY_PATH: the loader
+    # always searches LD_LIBRARY_PATH ahead of the system default paths, so the only
+    # way to keep boot-time root processes (and the image service spawned below) off
+    # the writable lib dir is to omit it here. The terminal session re-adds it before
+    # `exec ttyd`.
     export PKG_CONFIG_PATH="$persist_lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 
     # Python virtual environment if it exists
@@ -88,8 +107,10 @@ init_environment() {
     fi
 
     # Create profile script for persistent environment variables
-    # This ensures ALL bash sessions (including ttyd shells) have correct PATH
-    cat > /etc/profile.d/persistent-packages.sh << 'PROFILE_EOF'
+    # This ensures ALL bash sessions (including ttyd shells) have correct PATH.
+    # The heredoc is UNquoted so $PERSIST_PATHS expands at write time; variables
+    # that must expand when a session sources the script are escaped (\$).
+    cat > /etc/profile.d/persistent-packages.sh << PROFILE_EOF
 # Persistent package environment - auto-loaded for all bash sessions
 export HOME="/data/home"
 export XDG_CONFIG_HOME="/data/.config"
@@ -106,9 +127,9 @@ export DISABLE_AUTOUPDATER=1
 export GH_CONFIG_DIR="/data/.config/gh"
 
 # Persistent package paths and native Claude binary (HIGHEST PRIORITY)
-export PATH="/data/packages/bin:/data/packages/python/venv/bin:/data/home/.local/bin:$PATH"
-export LD_LIBRARY_PATH="/data/packages/lib:${LD_LIBRARY_PATH:-}"
-export PKG_CONFIG_PATH="/data/packages/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export PATH="$PERSIST_PATHS:\$PATH"
+export LD_LIBRARY_PATH="/data/packages/lib:\${LD_LIBRARY_PATH:-}"
+export PKG_CONFIG_PATH="/data/packages/lib/pkgconfig:\${PKG_CONFIG_PATH:-}"
 
 # Python virtual environment if it exists
 if [ -d "/data/packages/python/venv" ]; then
@@ -160,12 +181,16 @@ migrate_legacy_auth_files() {
 
     bashio::log.info "Checking for existing authentication files to migrate..."
 
-    # Check common legacy locations
+    # Check common legacy locations. Only trusted, image-internal paths are
+    # migrated. The old `/config/claude-config` and `/tmp/claude-config` sources
+    # were deliberately dropped: both are writable from outside this add-on
+    # (/config is mapped rw and user-synced; /tmp is world-writable), so anything
+    # placed there could be seeded by another party and would then be copied
+    # verbatim into Claude's credential directory. Migrating only from /root keeps
+    # this one-time import to files this image itself wrote.
     local legacy_locations=(
         "/root/.config/anthropic"
-        "/root/.anthropic" 
-        "/config/claude-config"
-        "/tmp/claude-config"
+        "/root/.anthropic"
     )
 
     for legacy_path in "${legacy_locations[@]}"; do
@@ -262,11 +287,29 @@ auto_install_packages() {
     apk_packages=$(bashio::config 'persistent_apk_packages')
     pip_packages=$(bashio::config 'persistent_pip_packages')
 
+    # Validation regexes for config-supplied package names. Both require a
+    # leading alphanumeric, so a `--flag`-style entry can't be smuggled in as an
+    # apk/pip option (argument injection).
+    #  - apk: plain names plus apk version constraints (git=2.47.0-r0, git>2.40).
+    #  - pip: names plus extras/specifiers (pandas[all], requests==2.31.0, foo>=1,<2).
+    # NB: keep these backslash-free. Inside a POSIX ERE bracket expression a
+    # backslash is a LITERAL character, so `\]` closes the class early — a
+    # malformed class here once rejected every real pip spec. `]` is included by
+    # placing it first in the class, `-` by placing it last.
+    local apk_pkg_re='^[A-Za-z0-9][A-Za-z0-9._+=<>~-]*$'
+    local pip_spec_re='^[A-Za-z0-9][]A-Za-z0-9._+=!~,<>[-]*$'
+
     # Check if any system (apk) packages are configured
     if [ -n "$apk_packages" ] && [ "$apk_packages" != "[]" ] && [ "$apk_packages" != "null" ]; then
         bashio::log.info "Auto-installing system packages from config..."
         while read -r pkg; do
             [ -n "$pkg" ] || continue
+            # Reject anything that isn't a package name or version pin (see
+            # apk_pkg_re above).
+            if [[ ! "$pkg" =~ $apk_pkg_re ]]; then
+                bashio::log.warning "  Skipping invalid apk package name: $pkg"
+                continue
+            fi
             bashio::log.info "  Installing: $pkg"
             /usr/local/bin/persist-install "$pkg" || bashio::log.warning "Failed to install: $pkg"
         done <<< "$apk_packages"
@@ -276,13 +319,22 @@ auto_install_packages() {
     if [ -n "$pip_packages" ] && [ "$pip_packages" != "[]" ] && [ "$pip_packages" != "null" ]; then
         bashio::log.info "Auto-installing Python packages from config..."
 
-        # Collect all package names onto one line for a single pip invocation
-        local all_packages
-        all_packages=$(echo "$pip_packages" | tr '\n' ' ')
+        # Validate each entry (see pip_spec_re above), then pass them as
+        # separate quoted arguments.
+        local -a pip_pkgs=()
+        local pkg
+        while read -r pkg; do
+            [ -n "$pkg" ] || continue
+            if [[ ! "$pkg" =~ $pip_spec_re ]]; then
+                bashio::log.warning "  Skipping invalid pip package spec: $pkg"
+                continue
+            fi
+            pip_pkgs+=("$pkg")
+        done <<< "$pip_packages"
 
-        if [ -n "${all_packages// /}" ]; then
-            bashio::log.info "  Installing: $all_packages"
-            /usr/local/bin/persist-install --python $all_packages || bashio::log.warning "Failed to install Python packages"
+        if [ "${#pip_pkgs[@]}" -gt 0 ]; then
+            bashio::log.info "  Installing: ${pip_pkgs[*]}"
+            /usr/local/bin/persist-install --python "${pip_pkgs[@]}" || bashio::log.warning "Failed to install Python packages"
         fi
     fi
 }
@@ -606,17 +658,39 @@ start_web_terminal() {
     auto_launch_claude=$(bashio::config 'auto_launch_claude' 'true')
     bashio::log.info "Auto-launch Claude: ${auto_launch_claude}"
 
-    # Start the image upload service first. It is non-critical: under `set -e`
-    # a non-zero return here would abort the whole add-on before ttyd starts, so
-    # guard it and continue with a terminal-only session if it fails.
-    start_image_service || bashio::log.warning "Image upload service failed to start; continuing with terminal only"
+    # Start the image upload service first. Since 5.0.0 it is the ONLY route to
+    # the terminal: ingress lands on its proxy (port 7680) and ttyd is bound to
+    # loopback with no host port mapping, so if it fails there is no terminal at
+    # all. Fail the boot loudly — the Supervisor then shows the add-on as
+    # stopped and this log names the culprit — instead of running an
+    # unreachable ttyd behind a "continuing with terminal only" message.
+    if ! start_image_service; then
+        bashio::log.error "Image/ingress proxy service failed to start — the terminal would be unreachable (ttyd is loopback-only). Aborting."
+        exit 1
+    fi
+
+    # Give the interactive terminal session persist-FIRST resolution — the mirror
+    # of run.sh's system-first boot PATH. This runs AFTER the image service is
+    # already spawned (so that root service stays on trusted system binaries) and
+    # applies to ttyd and everything it launches: Claude and any shell the user
+    # opens now prefer user-installed persistent packages and their libs. Strip
+    # the copy init_environment appended for boot before prepending, so the
+    # session PATH doesn't carry every persist dir twice.
+    export PATH="$PERSIST_PATHS:${PATH%:"$PERSIST_PATHS"}"
+    export LD_LIBRARY_PATH="/data/packages/lib:${LD_LIBRARY_PATH:-}"
 
     # Run ttyd with keepalive and reconnect configuration
+    # --interface 127.0.0.1: bind to loopback ONLY. ttyd runs `--writable` with no
+    #   credentials — a full root shell — so it must never be reachable off-box. The
+    #   only client that needs it is the image-service proxy, which targets
+    #   localhost:7681 from inside this same container. HA ingress reaches the
+    #   terminal through that proxy (port 7680), which enforces ingress-origin.
+    #   Direct in-container access (e.g. `docker exec`) is unaffected.
     # --ping-interval 30: WebSocket ping every 30s (default 300s) to prevent idle disconnects
     # --client-option reconnect=5: xterm.js auto-reconnect after 5 seconds on disconnect
     exec ttyd \
         --port "${port}" \
-        --interface 0.0.0.0 \
+        --interface 127.0.0.1 \
         --writable \
         --ping-interval 30 \
         --client-option reconnect=5 \

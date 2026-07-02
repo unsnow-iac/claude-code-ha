@@ -54,7 +54,7 @@ The add-on works out of the box; every option below is optional.
 | `persistent_apk_packages` | `[]` | System (apk) packages to auto-install on boot. |
 | `persistent_pip_packages` | `[]` | Python (pip) packages to auto-install on boot. |
 
-> **Don't expose the host ports.** ttyd runs unauthenticated, so the `7680`/`7681` host ports are unset by default and should stay that way — use the ingress panel.
+> **Ingress-only by design.** ttyd runs unauthenticated, so there is no host-port option: the `7680`/`7681` ports cannot be mapped to the host from the Network panel. Access is always through the authenticated ingress panel (`docker exec` still works for in-container access).
 
 ## Pairs with the Home Assistant MCP server
 

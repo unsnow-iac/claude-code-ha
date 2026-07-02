@@ -32,14 +32,14 @@ manual_auth_input() {
         return 1
     fi
 
-    # Save to temp file for Claude to read
-    echo "$auth_code" > /tmp/claude-auth-code
     echo ""
-    echo "✅ Code saved. Starting Claude authentication..."
+    echo "✅ Code received. Starting Claude authentication..."
     sleep 1
 
-    # Try to pipe the code to Claude
-    echo "$auth_code" | claude
+    # Pipe the code straight to Claude — never write it to a file. (A previous
+    # version staged it in /tmp/claude-auth-code and left the plaintext secret
+    # behind.)
+    printf '%s\n' "$auth_code" | claude
 }
 
 read_auth_from_file() {
@@ -50,6 +50,12 @@ read_auth_from_file() {
 
     if [ -f "$auth_file" ]; then
         auth_code=$(cat "$auth_file")
+        # Delete the on-disk secret immediately after reading it — before doing
+        # anything else — so the plaintext code never lingers in /config (which may
+        # be backed up or synced) regardless of what happens next.
+        rm -f "$auth_file"
+        echo "🧹 Cleaned up auth code file"
+
         if [ -z "$auth_code" ]; then
             echo "❌ File exists but is empty"
             return 1
@@ -58,12 +64,8 @@ read_auth_from_file() {
         echo "✅ Code found. Starting Claude authentication..."
         sleep 1
 
-        # Try to pipe the code to Claude
-        echo "$auth_code" | claude
-
-        # Clean up the file after use
-        rm -f "$auth_file"
-        echo "🧹 Cleaned up auth code file"
+        # Pipe the code to Claude (already removed from disk above)
+        printf '%s\n' "$auth_code" | claude
     else
         echo "❌ File not found: $auth_file"
         echo ""

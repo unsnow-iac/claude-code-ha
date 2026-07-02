@@ -20,19 +20,23 @@ podman build --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.21 \
   -t local/claude-terminal:test ./claude-terminal
 
 # 2. Create test configuration
-mkdir -p /tmp/test-config/claude-config
+mkdir -p /tmp/test-config
 echo '{"auto_launch_claude": false}' > /tmp/test-config/options.json
 
-# 3. Run test container
+# 3. Run test container. Access is ingress-only since 5.0.0: ttyd (7681) is
+#    loopback-bound inside the container, so map the image-service port (7680,
+#    the ingress entrypoint) and set ENFORCE_INGRESS=0 — outside HA there is no
+#    ingress gateway, and the origin guard would 403 everything except /health.
 podman run -d --name test-claude-dev \
-  -p 7681:7681 \
+  -p 7680:7680 \
+  -e ENFORCE_INGRESS=0 \
   -v /tmp/test-config:/config \
   local/claude-terminal:test
 
 # 4. Check startup logs
 podman logs test-claude-dev
 
-# 5. Test in browser: http://localhost:7681
+# 5. Test in browser: http://localhost:7680
 
 # 6. Clean up when done
 podman stop test-claude-dev && podman rm test-claude-dev
@@ -54,11 +58,11 @@ podman build --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.21 \
 podman stop test-claude-dev && podman rm test-claude-dev
 
 # Start new container with changes
-podman run -d --name test-claude-dev -p 7681:7681 \
+podman run -d --name test-claude-dev -p 7680:7680 -e ENFORCE_INGRESS=0 \
   -v /tmp/test-config:/config local/claude-terminal:test
 
 # Test changes
-open http://localhost:7681
+open http://localhost:7680
 ```
 
 #### 2. Hot-reload Script Testing
@@ -94,19 +98,22 @@ rm /tmp/test-config/options.json
 #### Authentication Testing
 
 ```bash
-# Start with clean credentials
-rm -rf /tmp/test-config/claude-config/*
+# Credentials live in the add-on-private /data volume, NOT in /config
+# (the /config/claude-config location is legacy and no longer read).
+# A brand-new container starts unauthenticated; removing the container
+# discards its credentials:
+podman stop test-claude-dev && podman rm test-claude-dev   # reset auth
 
-# Pre-populate credentials for testing
-cp ~/.config/anthropic/* /tmp/test-config/claude-config/
+# Inspect stored credentials inside a running container:
+podman exec test-claude-dev ls -la /data/.config/claude/
 ```
 
 #### Multi-session Testing
 
 ```bash
-# Run multiple containers on different ports
-podman run -d --name test-claude-dev-8681 -p 8681:7681 -v /tmp/test-config-2:/config local/claude-terminal:test
-podman run -d --name test-claude-dev-9681 -p 9681:7681 -v /tmp/test-config-3:/config local/claude-terminal:test
+# Run multiple containers on different host ports
+podman run -d --name test-claude-dev-8680 -p 8680:7680 -e ENFORCE_INGRESS=0 -v /tmp/test-config-2:/config local/claude-terminal:test
+podman run -d --name test-claude-dev-9680 -p 9680:7680 -e ENFORCE_INGRESS=0 -v /tmp/test-config-3:/config local/claude-terminal:test
 ```
 
 ### Debugging Techniques
@@ -138,22 +145,22 @@ podman exec test-claude-dev /usr/local/bin/claude-session-picker
 
 # Check file permissions and locations
 podman exec test-claude-dev ls -la /opt/scripts/
-podman exec test-claude-dev ls -la /config/claude-config/
+podman exec test-claude-dev ls -la /data/.config/claude/
 ```
 
 #### Network Testing
 
 ```bash
-# Test web endpoint
-curl -I http://localhost:7681
+# Test web endpoint (the image service; it also proxies the terminal)
+curl -fsS http://localhost:7680/health
 
-# Test WebSocket connection
+# Test WebSocket connection (ttyd, proxied through the image service at /terminal)
 curl --include --no-buffer \
   --header "Connection: Upgrade" \
   --header "Upgrade: websocket" \
   --header "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
   --header "Sec-WebSocket-Version: 13" \
-  http://localhost:7681/ws
+  http://localhost:7680/terminal/ws
 ```
 
 ### Performance Testing
@@ -176,7 +183,7 @@ podman history local/claude-terminal:test
 ```bash
 # Multiple concurrent connections
 for i in {1..5}; do
-  curl http://localhost:7681 &
+  curl http://localhost:7680 &
 done
 wait
 ```
@@ -185,11 +192,11 @@ wait
 
 #### Port Already In Use
 ```bash
-# Find and kill process using port 7681
-sudo lsof -ti:7681 | xargs kill -9
+# Find and kill process using port 7680
+sudo lsof -ti:7680 | xargs kill -9
 
-# Or use different port
-podman run -d --name test-claude-dev -p 7682:7681 -v /tmp/test-config:/config local/claude-terminal:test
+# Or use a different host port
+podman run -d --name test-claude-dev -p 7690:7680 -e ENFORCE_INGRESS=0 -v /tmp/test-config:/config local/claude-terminal:test
 ```
 
 #### Volume Mount Issues
@@ -238,23 +245,26 @@ podman image prune
 podman volume prune
 ```
 
-## Production Deployment
+## Shipping changes
 
-Once testing is complete:
+Once testing is complete, land the work through a branch + PR — never push
+straight to `main`:
 
 ```bash
-# Commit changes
-git add .
-git commit -m "feature: description of changes"
+# Create a feature branch and commit (Conventional Commits)
+git checkout -b fix/my-change
+git add -A
+git commit -m "fix: description of changes"
 
-# Update version in config.yaml
-vim claude-terminal/config.yaml
-
-# Push to main branch
-git push origin main
+# Push the branch and open a PR; CI gates the merge
+git push -u origin fix/my-change
+gh pr create --fill
 ```
 
-The changes will automatically be built and distributed to Home Assistant users.
+Version bumps are **not** per-PR: notes accumulate under `## Unreleased` in
+`claude-terminal/CHANGELOG.md`, and a version bump + tag + GitHub Release is cut
+when actually shipping — see the **Release standard** in `CLAUDE.md`. Users
+receive changes when they update/rebuild the add-on from the HA add-on store.
 
 ## Advanced Testing
 
@@ -262,10 +272,10 @@ The changes will automatically be built and distributed to Home Assistant users.
 
 ```bash
 # Test with real Home Assistant config structure
-mkdir -p /tmp/ha-config/{.storage,claude-config}
+mkdir -p /tmp/ha-config/.storage
 echo '{"auto_launch_claude": false}' > /tmp/ha-config/options.json
 
-podman run -d --name test-ha-claude -p 7681:7681 \
+podman run -d --name test-ha-claude -p 7680:7680 -e ENFORCE_INGRESS=0 \
   -v /tmp/ha-config:/config local/claude-terminal:test
 ```
 
