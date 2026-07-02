@@ -92,14 +92,15 @@ copy_lib_deps() {
 }
 
 install_system_packages() {
-    local packages="$@"
+    local packages="$*"
 
     echo "📦 Installing system packages: $packages"
     echo ""
 
-    # Install via APK first
+    # Install via APK first. Pass "$@" so each package stays a single argument —
+    # no word-splitting/globbing of the caller's list.
     echo "⏳ Installing via APK..."
-    if ! apk add --no-cache $packages; then
+    if ! apk add --no-cache "$@"; then
         echo "❌ Failed to install packages"
         exit 1
     fi
@@ -108,7 +109,7 @@ install_system_packages() {
     echo "💾 Copying to persistent storage..."
     mkdir -p "$PERSIST_BIN" "$PERSIST_ROOT/lib"
 
-    for pkg in $packages; do
+    for pkg in "$@"; do
         echo "  Processing: $pkg"
 
         # `apk info -L` lists package files WITHOUT a leading slash (e.g.
@@ -136,7 +137,7 @@ install_system_packages() {
 }
 
 install_python_packages() {
-    local packages="$@"
+    local packages="$*"
 
     echo "🐍 Installing Python packages: $packages"
     echo ""
@@ -163,7 +164,7 @@ install_python_packages() {
 
     echo "⏳ Installing packages..."
     pip install --upgrade pip -q
-    pip install $packages
+    pip install "$@"
 
     echo ""
     echo "✅ Python packages installed!"

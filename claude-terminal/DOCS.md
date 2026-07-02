@@ -23,8 +23,8 @@ and persisting custom packages across restarts.
    - Add: `https://github.com/unsnow-iac/claude-code-ha`
 2. Install the Claude Code for Home Assistant add-on
 3. Start the add-on
-4. Open it from the **Claude Code** sidebar panel (ingress) — there is no
-   separate host-port web UI by default
+4. Open it from the **Claude Code** sidebar panel (ingress) — this is the only
+   way in; there is no separate host-port web UI to expose
 5. On first use, follow the OAuth prompts to log in to your Anthropic account
 
 ## Configuration

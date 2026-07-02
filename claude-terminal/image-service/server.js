@@ -26,6 +26,19 @@ const PORT = process.env.IMAGE_SERVICE_PORT || 7680;
 const TTYD_PORT = process.env.TTYD_PORT || 7681;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/data/images';
 
+// Defense in depth: this service must bind 0.0.0.0 so Home Assistant ingress can
+// reach it over the internal Supervisor network, but nothing else on that network
+// should. HA ingress always stamps these headers on proxied requests (the add-on's
+// own frontend calls carry them too, since the panel is served through ingress);
+// a direct hit from another container will not. Reject those. Set ENFORCE_INGRESS=0
+// to disable (e.g. for local debugging outside HA).
+const ENFORCE_INGRESS = process.env.ENFORCE_INGRESS !== '0';
+
+function isIngressRequest(req) {
+    return Boolean(req.headers['x-ingress-path']) ||
+        req.headers['x-hass-source'] === 'core.ingress';
+}
+
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true, mode: 0o755 });
@@ -63,6 +76,20 @@ const upload = multer({
 
 // API routes MUST come before static files middleware
 // Otherwise static middleware will intercept API requests
+
+// Ingress-origin guard (see ENFORCE_INGRESS above). Runs before every route.
+// /health is exempt so the container health check / CI smoke test can poll it
+// without ingress headers.
+if (ENFORCE_INGRESS) {
+    app.use((req, res, next) => {
+        if (req.path === '/health' || isIngressRequest(req)) {
+            return next();
+        }
+        res.status(403).json({
+            error: 'Direct access is not allowed. Use the Home Assistant ingress panel.'
+        });
+    });
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -142,6 +169,16 @@ app.use((err, req, res, next) => {
 
 // Create HTTP server and start listening
 const server = http.createServer(app);
+
+// WebSocket upgrades (the ttyd terminal) bypass the Express middleware chain —
+// they are handled on the server's 'upgrade' event by http-proxy-middleware. This
+// listener is registered first, so it gates non-ingress upgrade attempts before the
+// proxy can forward them to ttyd.
+server.on('upgrade', (req, socket) => {
+    if (ENFORCE_INGRESS && !isIngressRequest(req)) {
+        socket.destroy();
+    }
+});
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Claude Code Image Service running on port ${PORT}`);

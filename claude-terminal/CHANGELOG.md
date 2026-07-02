@@ -7,6 +7,42 @@ All notable changes to this add-on are documented here. The format is based on
 
 ## Unreleased
 
+## 5.0.0 — 2026-07-02
+
+### 🔒 Security — ingress-only access (BREAKING)
+
+- **The terminal and image service are now reachable only through the
+  authenticated Home Assistant ingress panel.** ttyd (the browser terminal) runs
+  as a writable, credential-less root shell; it is now bound to **loopback
+  (`127.0.0.1`) inside the container**, so it can never be reached off-box. The
+  image service that fronts it now **enforces an ingress-origin check** — requests
+  that do not arrive through HA ingress get `403` (set `ENFORCE_INGRESS=0` to
+  opt out for local debugging).
+- **Removed the `ports:` mapping option entirely.** Neither port (7680/7681) can be
+  mapped to the host from the add-on's Network panel anymore. Ingress needs no host
+  mapping, so normal use is unaffected; this closes the door on accidentally
+  exposing an unauthenticated root shell on the LAN. **If you had manually mapped a
+  host port, that mapping no longer works** — use the ingress panel instead. Direct
+  in-container access via `docker exec` is unaffected.
+
+### 🔒 Security — defense-in-depth hardening
+
+- **Boot runs on trusted system binaries.** `run.sh` and the root services it
+  spawns now resolve executables system-first, so a binary planted in the writable,
+  persistent `/data/packages` tree can no longer shadow a baked one in the
+  privileged boot context (it was previously first on `PATH`). The interactive
+  terminal keeps persistent packages first, so package persistence is unchanged.
+- **Auto-installed package names are validated.** Config-supplied apk/pip package
+  names are checked and passed as discrete arguments, so an entry beginning with
+  `-` can no longer be smuggled through as an `apk`/`pip` option (argument
+  injection). `persist-install` also quotes its package expansions.
+- **Auth codes never touch disk.** The manual auth helper no longer writes the code
+  to `/tmp/claude-auth-code` (it was left behind in plaintext); the file-based
+  method now deletes the code from `/config` immediately after reading it.
+- **Legacy auth migration only trusts image-internal paths.** Dropped the
+  world/user-writable `/tmp/claude-config` and `/config/claude-config` migration
+  sources so seeded files can't be imported into Claude's credential directory.
+
 ## 4.7.0 — 2026-07-02
 
 ### ⬆️ Claude Code 2.1.197 → 2.1.198
